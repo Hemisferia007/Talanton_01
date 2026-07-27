@@ -44,6 +44,7 @@ python -m talanton.cli ingestar  # lee fuentes.json
 | **Tablero** | Kanban con drag & drop: Nuevo → Contactado → En conversación → Reunión → Propuesta → Ganado/Perdido |
 | **Leads** | Listado filtrable por estado, país, score y texto, con la señal principal de cada uno |
 | **Avisos** | Todas las vacantes detectadas, ordenadas por días abiertas |
+| **Fuentes** | Empresas a vigilar y de dónde se leen sus avisos, con el resultado de cada corrida |
 | **Mi empresa** | Datos de la consultora, el ICP que alimenta el eje de *fit*, y las casillas de Gmail conectadas |
 
 Dentro de cada lead, el intercambio con la empresa se ve como un **hilo de chat**:
@@ -94,15 +95,13 @@ en tu nombre, no leer tu casilla). Alta paso a paso en [`docs/gmail.md`](docs/gm
 3. **Portales HTML** — vía Scrapling, con selectores adaptativos y sesiones stealth
    sólo donde hace falta.
 
-Las fuentes se declaran en [`fuentes.json`](fuentes.json), y hay un **descubridor**
-que lo arma solo: le pasás nombres de empresas y sondea las cinco plataformas de ATS
-más usadas más la página de carrera, quedándose con las que responden de verdad.
+Las fuentes **se administran desde la pantalla Fuentes**, sin tocar archivos ni
+consola: cargás el nombre de una empresa y Talanton sondea Greenhouse, Lever, Ashby,
+Recruitee y Workable, y si no encuentra board busca JSON-LD en su página de trabajo.
+Lo que queda pendiente lo resuelve la corrida diaria.
 
-```bash
-cp empresas.ejemplo.txt empresas.txt   # y poné tus objetivos reales
-python -m talanton.cli descubrir       # escribe fuentes.json
-python -m talanton.cli ingestar
-```
+`fuentes.json` quedó sólo como semilla del primer arranque, para que un despliegue
+nuevo no empiece completamente en blanco.
 
 **Enriquecimiento**: `python -m talanton.cli enriquecer` busca emails en los avisos ya
 cargados, distingue buzones de área (`rrhh@`) de personas, verifica que el dominio
@@ -166,7 +165,7 @@ talanton/
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            185 tests: dominio, web, accesibilidad, correo, auth, ingesta y enriquecimiento
+tests/            200 tests: dominio, web, accesibilidad, correo, auth, ingesta y enriquecimiento
 docs/             Estrategia, alta de Gmail y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```
