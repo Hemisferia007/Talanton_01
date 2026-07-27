@@ -346,6 +346,9 @@ label { display: block; font-size: var(--t-xs); color: var(--n-600); font-weight
 }
 .alerta-ok { background: var(--acento-tinta); border-color: var(--acento); color: var(--acento); }
 .alerta-error { background: var(--critico-tinta); border-color: var(--critico); color: var(--critico); }
+.alerta-aviso { background: var(--alerta-tinta); border-color: var(--alerta); color: var(--alerta); }
+.alerta summary { cursor: pointer; font-weight: 550; }
+.alerta code { background: rgba(0, 0, 0, .06); padding: 1px 4px; border-radius: 4px; }
 
 /* --- Ventana de redacción ---
    <dialog> nativo: el foco atrapado, el Esc y el fondo inerte los pone el
@@ -432,6 +435,19 @@ label { display: block; font-size: var(--t-xs); color: var(--n-600); font-weight
 /* Los mails vienen en texto plano: hay que respetar los saltos de línea. */
 .burbuja-cuerpo { white-space: pre-wrap; line-height: 1.55; }
 .burbuja-error { margin: var(--s2) 0 0; font-size: var(--t-xs); color: var(--critico); }
+
+.objetivo {
+  margin-top: var(--s3);
+  padding: var(--s3);
+  background: var(--n-50);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--n-200);
+}
+.objetivo strong { display: block; font-size: var(--t-xs); text-transform: uppercase;
+  letter-spacing: .05em; color: var(--n-600); margin-bottom: var(--s1); }
+.objetivo p { margin: 0 0 var(--s2); }
+.objetivo ul { margin: 0 0 var(--s2); padding-left: var(--s4); }
+.objetivo code { background: var(--n-100); padding: 1px 4px; border-radius: 4px; font-size: .95em; }
 
 .registrar-respuesta { border-top: 1px solid var(--n-200); padding-top: var(--s3); }
 .registrar-respuesta summary {

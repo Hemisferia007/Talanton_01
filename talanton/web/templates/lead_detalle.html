@@ -240,8 +240,24 @@
           </li>
         {% endfor %}
         </ul>
-      {% else %}
-        <p class="vacio">Sin contactos cargados. Identificar al decisor sube el eje de accesibilidad.</p>
+      {% endif %}
+
+      {% if objetivo and not lead.empresa.contactos|selectattr('es_decisor')|list %}
+      {# Sin decisor identificado, lo útil no es decir "falta el contacto" sino
+         decir qué cargo buscar: convierte una tarea difusa en una concreta. #}
+      <div class="objetivo">
+        <strong>A quién buscar</strong>
+        <p class="mini">{{ objetivo.razon }}</p>
+        <ul class="mini">
+          {% for cargo in objetivo.cargos[:3] %}<li>{{ cargo }}</li>{% endfor %}
+        </ul>
+        {% if lead.empresa.dominio %}
+        <p class="mini tenue">
+          Buzones a probar:
+          {% for b in objetivo.buzones[:3] %}<code>{{ b }}@{{ lead.empresa.dominio }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+        </p>
+        {% endif %}
+      </div>
       {% endif %}
     </section>
   </div>

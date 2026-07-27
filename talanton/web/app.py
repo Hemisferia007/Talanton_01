@@ -30,6 +30,7 @@ from ..config import (
 )
 from ..correo import servicio as correo
 from ..correo import gmail as api_gmail
+from ..enriquecer import objetivo_para
 from ..db import db_dependency, init_db
 from ..models import (
     ESTADOS_KANBAN,
@@ -228,6 +229,7 @@ def dashboard(request: Request, db: Session = Depends(db_dependency)):
             metricas=metricas,
             prioritarios=prioritarios,
             urgentes=urgentes,
+            ingesta=services.estado_ingesta(db),
         ),
     )
 
@@ -279,6 +281,7 @@ def lead_detalle(request: Request, lead_id: int, db: Session = Depends(db_depend
             lead=lead,
             vacantes=vacantes,
             cuentas=cuentas,
+            objetivo=objetivo_para(lead.empresa),
             # El borrador se arma acá para que el diálogo abra ya escrito, sin
             # esperar una llamada al servidor.
             redaccion=correo.borrador(db, lead, cuenta=cuentas[0] if cuentas else None),

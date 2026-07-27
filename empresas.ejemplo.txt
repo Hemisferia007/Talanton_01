@@ -1,0 +1,22 @@
+# Empresas a sondear con `python -m talanton.cli descubrir --empresas empresas.txt`
+#
+# Formato: Nombre, dominio.com.ar   (el dominio es opcional pero ayuda mucho:
+# mejora los slugs candidatos y habilita el sondeo de la página de carrera)
+#
+# Copiá este archivo a empresas.txt y poné las empresas que te interesan.
+# Arrancá por las que ya conocés: clientes viejos, empresas del rubro donde
+# tenés casos, y las que viste publicando avisos últimamente.
+#
+# El descubridor prueba Greenhouse, Lever, Ashby, Recruitee y Workable, y si no
+# encuentra nada busca JSON-LD en la página de carrera del dominio.
+
+# --- Tecnología y fintech (las que más usan ATS con API pública) ---
+Mercado Libre, mercadolibre.com
+Ualá, uala.com.ar
+Tiendanube, tiendanube.com
+Auth0, auth0.com
+
+# --- Ejemplos de otros rubros: reemplazá por tus objetivos reales ---
+# Andes Logística, andeslogistica.com.ar
+# Grupo Sanitario del Plata, gsplata.com.ar
+# Cerámica Litoral, ceramicalitoral.com.ar

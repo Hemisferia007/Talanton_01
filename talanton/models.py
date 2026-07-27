@@ -391,6 +391,45 @@ class Mensaje(Base):
         return self.enviado_en or self.creado_en
 
 
+class CorridaIngesta(Base):
+    """Qué trajo cada corrida diaria.
+
+    Sin esto, una fuente que se rompe o un fuentes.json mal configurado dan
+    exactamente el mismo resultado que un día tranquilo: cero avisos nuevos y
+    ningún error a la vista. Y como el histórico es el activo, enterarse dos
+    meses después de que no se estaba juntando nada es el peor escenario.
+    """
+
+    __tablename__ = "corridas_ingesta"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    iniciada_en: Mapped[datetime] = mapped_column(DateTime, default=ahora, index=True)
+    terminada_en: Mapped[datetime | None] = mapped_column(DateTime)
+
+    fuentes_ok: Mapped[int] = mapped_column(Integer, default=0)
+    fuentes_con_error: Mapped[int] = mapped_column(Integer, default=0)
+    avisos_encontrados: Mapped[int] = mapped_column(Integer, default=0)
+    avisos_nuevos: Mapped[int] = mapped_column(Integer, default=0)
+    avisos_cerrados: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Detalle por conector, una línea por fuente. Texto plano a propósito: se
+    # lee de un vistazo y no obliga a nada del otro lado.
+    detalle: Mapped[str] = mapped_column(Text, default="")
+
+    @property
+    def sin_resultados(self) -> bool:
+        """Una corrida que no encontró nada casi siempre es un problema."""
+        return self.avisos_encontrados == 0
+
+    @property
+    def hubo_problemas(self) -> bool:
+        return self.fuentes_con_error > 0 or self.sin_resultados
+
+    @property
+    def lineas_detalle(self) -> list[str]:
+        return [l for l in (self.detalle or "").splitlines() if l.strip()]
+
+
 class PerfilConsultora(Base):
     """Los datos de Talanton y su ICP. Alimenta el eje de fit del scoring."""
 

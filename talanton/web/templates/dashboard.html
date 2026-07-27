@@ -10,6 +10,27 @@
   </div>
 </div>
 
+{# Una corrida que no trae nada se ve igual que un día tranquilo. Si algo anda
+   mal, tiene que decirlo acá y no esperar a que alguien revise los logs. #}
+{% if ingesta.estado != 'ok' %}
+<div class="alerta {{ 'alerta-error' if ingesta.estado in ('error', 'vacia', 'nunca') else 'alerta-aviso' }}"
+     role="{{ 'alert' if ingesta.estado in ('error', 'vacia') else 'status' }}">
+  <strong>Ingesta:</strong> {{ ingesta.mensaje }}
+  {% if ingesta.estado in ('vacia', 'nunca') %}
+    Sin avisos entrando no se acumula histórico, que es de donde salen las
+    señales de días abiertos y reposteos. Revisá <code>fuentes.json</code>.
+  {% endif %}
+  {% if ingesta.corrida and ingesta.corrida.lineas_detalle %}
+    <details style="margin-top:var(--s2)">
+      <summary>Detalle de la última corrida</summary>
+      <ul class="mini" style="margin:var(--s2) 0 0; padding-left:var(--s4)">
+        {% for linea in ingesta.corrida.lineas_detalle %}<li>{{ linea }}</li>{% endfor %}
+      </ul>
+    </details>
+  {% endif %}
+</div>
+{% endif %}
+
 {# Una métrica manda: la que dispara la acción comercial. #}
 <div class="metricas">
   <div class="metrica principal">

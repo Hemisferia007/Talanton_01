@@ -94,7 +94,29 @@ en tu nombre, no leer tu casilla). Alta paso a paso en [`docs/gmail.md`](docs/gm
 3. **Portales HTML** — vía Scrapling, con selectores adaptativos y sesiones stealth
    sólo donde hace falta.
 
-Las fuentes se declaran en [`fuentes.json`](fuentes.json).
+Las fuentes se declaran en [`fuentes.json`](fuentes.json), y hay un **descubridor**
+que lo arma solo: le pasás nombres de empresas y sondea las cinco plataformas de ATS
+más usadas más la página de carrera, quedándose con las que responden de verdad.
+
+```bash
+cp empresas.ejemplo.txt empresas.txt   # y poné tus objetivos reales
+python -m talanton.cli descubrir       # escribe fuentes.json
+python -m talanton.cli ingestar
+```
+
+**Enriquecimiento**: `python -m talanton.cli enriquecer` busca emails en los avisos ya
+cargados, distingue buzones de área (`rrhh@`) de personas, verifica que el dominio
+resuelva, y marca al decisor. En el lead, cuando todavía no hay decisor, la ficha dice
+**qué cargo buscar** según el tamaño de la empresa — en una PyME decide el dueño, en
+una de 500 el líder de selección.
+
+No se compran bases ni se scrapea LinkedIn: los emails salen de lo que la empresa
+publicó para que la contacten por trabajo, con `fuente_url` guardada para poder
+auditarlos y borrarlos a pedido.
+
+**Visibilidad de la ingesta**: cada corrida queda registrada, y el panel avisa si la
+última no trajo nada o si fallaron fuentes. Sin eso, una configuración rota se ve
+exactamente igual que un día tranquilo — y el histórico que no se juntó no se recupera.
 
 ## Cómo se sostiene el histórico
 
@@ -136,14 +158,15 @@ talanton/
   normalize.py    Dedupe de empresas, normalización de roles, detección de seniority
   scoring.py      Los cuatro ejes y sus razones
   services.py     Upserts, cierre de vacantes, kanban, consultas
-  ingest/         Conectores y corrida diaria
+  ingest/         Conectores, corrida diaria y descubridor de fuentes
+  enriquecer/     Contactos desde avisos, verificación de dominio y regla de decisor
   correo/         Gmail: OAuth, cifrado de tokens, plantillas y envío
   auth.py         Hash scrypt, login, sesiones
   web/            FastAPI + templates + kanban + ventana de redacción
   seed.py         Datos de demo
-  cli.py          init | usuario | seed | ingestar | recalcular | servir
+  cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            140 tests: dominio, web, accesibilidad, correo, auth y migraciones
+tests/            185 tests: dominio, web, accesibilidad, correo, auth, ingesta y enriquecimiento
 docs/             Estrategia, alta de Gmail y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```
@@ -156,5 +179,6 @@ python -m pytest -q
 
 ## Pendiente (ver roadmap)
 
-Enriquecimiento de decisores, verificación de mails, alertas diarias y el loop de
-feedback comercial que recalibra los pesos del scoring con resultados reales.
+Alertas diarias por mail, y el loop de feedback comercial que recalibra los pesos del
+scoring con resultados reales — ese último recién tiene sentido con unos meses de
+histórico y leads cerrados.

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, selectinload
 from . import normalize, scoring
 from .models import (
     Actividad,
+    CorridaIngesta,
     Empresa,
     EstadoLead,
     Lead,
@@ -372,3 +373,43 @@ def metricas(session: Session) -> dict:
 
 def fecha_hoy() -> date:
     return datetime.now(timezone.utc).date()
+
+
+def ultima_corrida(session: Session) -> CorridaIngesta | None:
+    return session.scalar(
+        select(CorridaIngesta).order_by(CorridaIngesta.iniciada_en.desc()).limit(1)
+    )
+
+
+def estado_ingesta(session: Session) -> dict:
+    """Resume si la ingesta está trayendo datos, para mostrarlo en el panel.
+
+    El caso que importa detectar es el silencioso: el cron corre todos los
+    días, no falla, y no trae nada porque las fuentes están mal configuradas.
+    Desde afuera se ve igual que un día sin novedades.
+    """
+    corrida = ultima_corrida(session)
+    if corrida is None:
+        return {
+            "estado": "nunca",
+            "mensaje": "La ingesta todavía no corrió nunca.",
+            "corrida": None,
+            "horas": None,
+        }
+
+    referencia = corrida.terminada_en or corrida.iniciada_en
+    horas = (ahora() - referencia.replace(tzinfo=timezone.utc)).total_seconds() / 3600
+
+    if corrida.fuentes_con_error and not corrida.fuentes_ok:
+        estado, mensaje = "error", "Todas las fuentes fallaron en la última corrida."
+    elif corrida.sin_resultados:
+        estado, mensaje = "vacia", "La última corrida no encontró ningún aviso."
+    elif corrida.fuentes_con_error:
+        estado = "parcial"
+        mensaje = f"{corrida.fuentes_con_error} fuente(s) fallaron en la última corrida."
+    elif horas > 36:
+        estado, mensaje = "atrasada", "Hace más de un día y medio que no corre la ingesta."
+    else:
+        estado, mensaje = "ok", "La ingesta está trayendo datos."
+
+    return {"estado": estado, "mensaje": mensaje, "corrida": corrida, "horas": horas}

@@ -14,6 +14,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from ..config import BASE_DIR
+from ..models import CorridaIngesta, ahora
 from ..services import (
     asegurar_lead,
     cerrar_vacantes_no_vistas,
@@ -122,6 +123,13 @@ def persistir(session: Session, crudas: list[VacanteCruda], fuente: str) -> Resu
 
 def correr(session: Session, conectores: list[Conector] | None = None) -> list[Resumen]:
     conectores = conectores if conectores is not None else cargar_conectores()
+
+    # La corrida se registra siempre, incluso si no hay fuentes configuradas:
+    # "no corrió" y "corrió y no encontró nada" tienen que poder distinguirse.
+    corrida = CorridaIngesta()
+    session.add(corrida)
+    session.flush()
+
     resultados: list[Resumen] = []
     for conector in conectores:
         etiqueta = f"{conector.nombre}:{getattr(conector, 'board', getattr(conector, 'url', ''))}"
@@ -142,4 +150,36 @@ def correr(session: Session, conectores: list[Conector] | None = None) -> list[R
             resumen.nuevas,
             resumen.cerradas,
         )
+
+    _cerrar_corrida(session, corrida, resultados, sin_fuentes=not conectores)
+    session.commit()
     return resultados
+
+
+def _cerrar_corrida(
+    session: Session,
+    corrida: CorridaIngesta,
+    resultados: list[Resumen],
+    *,
+    sin_fuentes: bool = False,
+) -> None:
+    corrida.terminada_en = ahora()
+    corrida.fuentes_ok = sum(1 for r in resultados if not r.error)
+    corrida.fuentes_con_error = sum(1 for r in resultados if r.error)
+    corrida.avisos_encontrados = sum(r.encontradas for r in resultados)
+    corrida.avisos_nuevos = sum(r.nuevas for r in resultados)
+    corrida.avisos_cerrados = sum(r.cerradas for r in resultados)
+
+    lineas = []
+    if sin_fuentes:
+        lineas.append("Sin fuentes configuradas: revisar fuentes.json")
+    for r in resultados:
+        if r.error:
+            lineas.append(f"✗ {r.conector}: {r.error}")
+        else:
+            lineas.append(
+                f"✓ {r.conector}: {r.encontradas} encontradas, "
+                f"{r.nuevas} nuevas, {r.cerradas} cerradas"
+            )
+    corrida.detalle = "\n".join(lineas)
+    session.flush()
