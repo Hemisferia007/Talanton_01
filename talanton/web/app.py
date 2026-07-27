@@ -31,13 +31,16 @@ from ..config import (
 from ..correo import servicio as correo
 from ..correo import gmail as api_gmail
 from ..enriquecer import objetivo_para
+from ..ingest import fuentes as fuentes_db
 from ..db import db_dependency, init_db
 from ..models import (
     ESTADOS_KANBAN,
     CuentaGmail,
     Empresa,
     EstadoLead,
+    Fuente,
     Lead,
+    Objetivo,
     Seniority,
     Usuario,
 )
@@ -385,6 +388,90 @@ def avisos(
             },
         ),
     )
+
+
+# --- Fuentes -----------------------------------------------------------------
+
+
+@app.get("/fuentes", response_class=HTMLResponse)
+def fuentes(
+    request: Request,
+    mensaje: str | None = None,
+    error: str | None = None,
+    db: Session = Depends(db_dependency),
+):
+    return templates.TemplateResponse(
+        request,
+        "fuentes.html",
+        _contexto(
+            request,
+            objetivos=fuentes_db.listar_objetivos(db),
+            fuentes=fuentes_db.listar_fuentes(db),
+            mensaje=mensaje,
+            error=error,
+        ),
+    )
+
+
+@app.post("/fuentes/objetivos")
+def agregar_objetivos(lineas: str = Form(...), db: Session = Depends(db_dependency)):
+    nuevos, repetidos = fuentes_db.agregar_objetivos(db, lineas)
+    db.commit()
+
+    partes = []
+    if nuevos:
+        partes.append(f"{nuevos} empresa{'s' if nuevos != 1 else ''} agregada{'s' if nuevos != 1 else ''}")
+    if repetidos:
+        partes.append(f"{repetidos} ya estaba{'n' if repetidos != 1 else ''}")
+    mensaje = ". ".join(partes) or "No se agregó nada"
+    if nuevos:
+        mensaje += ". Presioná «Buscar» en cada una, o esperá a la corrida de mañana."
+    return _volver_a_fuentes(mensaje=mensaje)
+
+
+@app.post("/fuentes/objetivos/{objetivo_id}/sondear")
+def sondear_objetivo(objetivo_id: int, db: Session = Depends(db_dependency)):
+    """Sondeo a demanda de una empresa.
+
+    Es sincrónico y tarda unos segundos: son varias peticiones HTTP. Se hace de
+    a una a propósito, para que la pantalla no se quede colgada.
+    """
+    objetivo = db.get(Objetivo, objetivo_id)
+    if objetivo is None:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+
+    encontradas = fuentes_db.sondear_objetivo(db, objetivo)
+    db.commit()
+
+    if encontradas:
+        return _volver_a_fuentes(
+            mensaje=f"{objetivo.nombre}: {encontradas} fuente(s) encontradas. {objetivo.detalle}"
+        )
+    return _volver_a_fuentes(
+        error=(
+            f"{objetivo.nombre}: no se encontró dónde publica. "
+            "Puede que use sólo portales de empleo, o que el dominio no sea el correcto."
+        )
+    )
+
+
+@app.post("/fuentes/{fuente_id}/alternar")
+def alternar_fuente(fuente_id: int, db: Session = Depends(db_dependency)):
+    fuente = db.get(Fuente, fuente_id)
+    if fuente is None:
+        raise HTTPException(status_code=404, detail="Fuente no encontrada")
+    fuente.activa = not fuente.activa
+    db.commit()
+    estado = "activada" if fuente.activa else "desactivada"
+    return _volver_a_fuentes(mensaje=f"{fuente.empresa} ({fuente.tipo}) {estado}.")
+
+
+def _volver_a_fuentes(mensaje: str | None = None, error: str | None = None):
+    from urllib.parse import urlencode
+
+    parametros = {k: v for k, v in (("mensaje", mensaje), ("error", error)) if v}
+    destino = "/fuentes" + (f"?{urlencode(parametros)}" if parametros else "")
+    return RedirectResponse(destino, status_code=303)
 
 
 # --- Mi empresa --------------------------------------------------------------

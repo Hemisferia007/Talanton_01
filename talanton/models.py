@@ -391,6 +391,90 @@ class Mensaje(Base):
         return self.enviado_en or self.creado_en
 
 
+class Objetivo(Base):
+    """Una empresa que queremos vigilar.
+
+    Es lo único que el usuario carga a mano: un nombre y, si lo tiene, el
+    dominio. El descubridor se encarga de averiguar dónde publica sus avisos.
+    """
+
+    __tablename__ = "objetivos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    nombre_normalizado: Mapped[str] = mapped_column(String(200), index=True)
+    dominio: Mapped[str | None] = mapped_column(String(200))
+    activo: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+
+    creado_en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
+    # None mientras no se sondeó nunca: así la corrida diaria sabe qué le falta.
+    revisado_en: Mapped[datetime | None] = mapped_column(DateTime)
+    # None = pendiente | "ok" = se le encontró al menos una fuente | "sin_fuente"
+    resultado: Mapped[str | None] = mapped_column(String(20), index=True)
+    detalle: Mapped[str | None] = mapped_column(Text)
+
+    fuentes: Mapped[list["Fuente"]] = relationship(
+        back_populates="objetivo", cascade="all, delete-orphan"
+    )
+
+    @property
+    def pendiente(self) -> bool:
+        return self.revisado_en is None
+
+    @property
+    def estado_etiqueta(self) -> str:
+        if self.pendiente:
+            return "Pendiente de sondeo"
+        if self.resultado == "ok":
+            n = len([f for f in self.fuentes if f.activa])
+            return f"{n} fuente{'s' if n != 1 else ''}"
+        return "Sin fuente automática"
+
+
+class Fuente(Base):
+    """De dónde se leen avisos: un board de ATS o una página de carrera.
+
+    Vive en la base y no en un archivo para que se pueda administrar desde la
+    web: en un hosting sin consola, editar un JSON del repo y redesplegar no es
+    una opción razonable para una tarea de todos los días.
+    """
+
+    __tablename__ = "fuentes"
+    __table_args__ = (
+        UniqueConstraint("tipo", "identificador", name="uq_fuente_tipo_identificador"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    objetivo_id: Mapped[int | None] = mapped_column(ForeignKey("objetivos.id"), index=True)
+
+    # greenhouse | lever | ashby | recruitee | workable | pagina_carrera
+    tipo: Mapped[str] = mapped_column(String(40), index=True)
+    # El slug del board, o la URL en el caso de página de carrera.
+    identificador: Mapped[str] = mapped_column(String(600))
+    empresa: Mapped[str] = mapped_column(String(200))
+    dominio: Mapped[str | None] = mapped_column(String(200))
+    stealth: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    activa: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    creada_en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
+    ultima_corrida: Mapped[datetime | None] = mapped_column(DateTime)
+    avisos_ultima_corrida: Mapped[int | None] = mapped_column(Integer)
+    ultimo_error: Mapped[str | None] = mapped_column(Text)
+
+    objetivo: Mapped[Objetivo | None] = relationship(back_populates="fuentes")
+
+    @property
+    def etiqueta(self) -> str:
+        return f"{self.tipo}:{self.identificador}"
+
+    @property
+    def anda(self) -> bool | None:
+        """None si nunca corrió."""
+        if self.ultima_corrida is None:
+            return None
+        return self.ultimo_error is None
+
+
 class CorridaIngesta(Base):
     """Qué trajo cada corrida diaria.
 

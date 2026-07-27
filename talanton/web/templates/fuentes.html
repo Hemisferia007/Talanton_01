@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block titulo %}Fuentes · Talanton{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>De dónde salen los avisos</h1>
+    <p class="subtitulo">
+      Cargá las empresas que te interesa vigilar. Talanton averigua solo dónde publican
+      sus búsquedas y las empieza a mirar todos los días.
+    </p>
+  </div>
+</div>
+
+{% if mensaje %}<p class="alerta alerta-ok" role="status">{{ mensaje }}</p>{% endif %}
+{% if error %}<p class="alerta alerta-error" role="alert">{{ error }}</p>{% endif %}
+
+<div class="grid-principal">
+  <div class="pila">
+    <section class="panel" aria-labelledby="t-objetivos">
+      <h2 id="t-objetivos">Empresas que estamos vigilando</h2>
+      <p class="subtitulo">{{ objetivos|length }} cargada{{ 's' if objetivos|length != 1 }}.</p>
+
+      {% if objetivos %}
+      <div class="tabla-envoltorio">
+        <table>
+          <caption class="sr-solo">Empresas a vigilar</caption>
+          <thead>
+            <tr>
+              <th scope="col">Empresa</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Dónde publica</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for o in objetivos %}
+            <tr>
+              <td>
+                <div class="celda-titulo">{{ o.nombre }}</div>
+                {% if o.dominio %}<div class="celda-sub">{{ o.dominio }}</div>{% endif %}
+              </td>
+              <td>
+                {% if o.pendiente %}
+                  <span class="chip">Pendiente</span>
+                {% elif o.resultado == 'ok' %}
+                  <span class="chip ok">{{ o.estado_etiqueta }}</span>
+                {% else %}
+                  <span class="chip tibio">Sin fuente</span>
+                {% endif %}
+              </td>
+              <td class="mini tenue">{{ o.detalle or '—' }}</td>
+              <td>
+                <form method="post" action="/fuentes/objetivos/{{ o.id }}/sondear">
+                  <button class="btn btn-fantasma" type="submit"
+                          title="Volver a buscar dónde publica esta empresa">
+                    {{ 'Buscar' if o.pendiente else 'Reintentar' }}
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <p class="vacio">
+          Todavía no cargaste ninguna. Empezá por las que ya conocés: clientes viejos,
+          empresas del rubro donde tenés casos, las que viste publicando avisos.
+        </p>
+      {% endif %}
+    </section>
+
+    <section class="panel" aria-labelledby="t-fuentes">
+      <h2 id="t-fuentes">Fuentes activas</h2>
+      <p class="subtitulo">Los boards y páginas concretas que se leen cada día.</p>
+
+      {% if fuentes %}
+      <div class="tabla-envoltorio">
+        <table>
+          <caption class="sr-solo">Fuentes configuradas</caption>
+          <thead>
+            <tr>
+              <th scope="col">Empresa</th>
+              <th scope="col">Tipo</th>
+              <th scope="col">Última corrida</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for f in fuentes %}
+            <tr>
+              <td>
+                <div class="celda-titulo">{{ f.empresa }}</div>
+                <div class="celda-sub">{{ f.identificador }}</div>
+              </td>
+              <td>{{ f.tipo }}</td>
+              <td>
+                {% if f.anda is none %}
+                  <span class="chip">Nunca corrió</span>
+                {% elif f.anda %}
+                  <span class="chip ok">{{ f.avisos_ultima_corrida }} avisos</span>
+                {% else %}
+                  <span class="chip urgente" title="{{ f.ultimo_error }}">Falló</span>
+                {% endif %}
+                {% if not f.activa %}<span class="chip">Inactiva</span>{% endif %}
+              </td>
+              <td>
+                <form method="post" action="/fuentes/{{ f.id }}/alternar">
+                  <button class="btn btn-fantasma" type="submit">
+                    {{ 'Desactivar' if f.activa else 'Activar' }}
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <p class="vacio">Ninguna todavía. Cargá empresas y presioná «Buscar».</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="pila">
+    <section class="panel" aria-labelledby="t-agregar">
+      <h2 id="t-agregar">Agregar empresas</h2>
+      <form method="post" action="/fuentes/objetivos">
+        <div class="campo">
+          <label for="lineas">Una por línea</label>
+          <textarea id="lineas" name="lineas" rows="9" required
+                    aria-describedby="ayuda-lineas"
+                    placeholder="Andes Logística, andeslogistica.com.ar&#10;Cerámica Litoral, ceramicalitoral.com.ar&#10;Grupo Sanitario del Plata"></textarea>
+          <p class="ayuda" id="ayuda-lineas">
+            El dominio es opcional pero ayuda bastante: mejora las chances de
+            encontrar dónde publican.
+          </p>
+        </div>
+        <button class="btn" type="submit">Agregar</button>
+      </form>
+    </section>
+
+    <section class="panel" aria-labelledby="t-como">
+      <h2 id="t-como">Cómo funciona</h2>
+      <ol class="mini" style="padding-left:var(--s4); line-height:1.7">
+        <li>Cargás el nombre de una empresa.</li>
+        <li>Talanton busca si publica en Greenhouse, Lever, Ashby, Recruitee o
+            Workable, y si no, mira su página de trabajo.</li>
+        <li>Desde ahí lee sus avisos todos los días.</li>
+        <li>A las pocas semanas ya sabe cuáles llevan 60 días sin poder cerrar
+            una búsqueda: ese es el momento de llamar.</li>
+      </ol>
+      <p class="ayuda">
+        Las que no publican en ningún lado conocido quedan como «Sin fuente». No es
+        un error: muchas PyMEs publican sólo en portales, y esos se agregan aparte.
+      </p>
+    </section>
+  </div>
+</div>
+{% endblock %}

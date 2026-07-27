@@ -25,6 +25,7 @@ from ..services import (
     upsert_empresa,
     upsert_vacante,
 )
+from . import fuentes as fuentes_db
 from .ats import Greenhouse, Lever
 from .base import Conector, VacanteCruda
 from .jsonld import PaginaDeCarrera
@@ -121,8 +122,42 @@ def persistir(session: Session, crudas: list[VacanteCruda], fuente: str) -> Resu
     return resumen
 
 
-def correr(session: Session, conectores: list[Conector] | None = None) -> list[Resumen]:
-    conectores = conectores if conectores is not None else cargar_conectores()
+def resolver_pendientes(session: Session, limite: int = 20) -> int:
+    """Sondea los objetivos que todavía no tienen fuente. Devuelve cuántas encontró.
+
+    Va antes de ingerir para que una empresa cargada hoy empiece a mirarse en
+    la misma corrida, sin esperar al día siguiente.
+    """
+    pendientes = fuentes_db.objetivos_pendientes(session, limite=limite)
+    if not pendientes:
+        return 0
+
+    log.info("Sondeando %s objetivos pendientes…", len(pendientes))
+    encontradas = 0
+    for objetivo in pendientes:
+        encontradas += fuentes_db.sondear_objetivo(session, objetivo)
+        session.commit()
+    return encontradas
+
+
+def correr(
+    session: Session,
+    conectores: list[Conector] | None = None,
+    *,
+    resolver: bool = True,
+) -> list[Resumen]:
+    """Corrida diaria: sondea lo pendiente y después ingiere todas las fuentes."""
+    pares: list[tuple[object, Conector]] = []
+    if conectores is None:
+        # Semilla del archivo sólo la primera vez, para que un despliegue nuevo
+        # no arranque completamente en blanco.
+        fuentes_db.sembrar_desde_archivo(session)
+        session.commit()
+        if resolver:
+            resolver_pendientes(session)
+        pares = fuentes_db.conectores_desde_base(session)
+    else:
+        pares = [(None, c) for c in conectores]
 
     # La corrida se registra siempre, incluso si no hay fuentes configuradas:
     # "no corrió" y "corrió y no encontró nada" tienen que poder distinguirse.
@@ -131,16 +166,18 @@ def correr(session: Session, conectores: list[Conector] | None = None) -> list[R
     session.flush()
 
     resultados: list[Resumen] = []
-    for conector in conectores:
+    for fuente, conector in pares:
         etiqueta = f"{conector.nombre}:{getattr(conector, 'board', getattr(conector, 'url', ''))}"
         try:
             crudas = conector.fetch()
         except Exception as exc:  # una fuente caída no debe frenar la corrida
             log.error("Falló %s: %s", etiqueta, exc)
             resultados.append(Resumen(conector=etiqueta, error=str(exc)))
+            _marcar_fuente(fuente, error=str(exc))
             continue
         resumen = persistir(session, crudas, conector.nombre)
         resumen.conector = etiqueta
+        _marcar_fuente(fuente, avisos=resumen.encontradas)
         session.commit()
         resultados.append(resumen)
         log.info(
@@ -151,9 +188,18 @@ def correr(session: Session, conectores: list[Conector] | None = None) -> list[R
             resumen.cerradas,
         )
 
-    _cerrar_corrida(session, corrida, resultados, sin_fuentes=not conectores)
+    _cerrar_corrida(session, corrida, resultados, sin_fuentes=not pares)
     session.commit()
     return resultados
+
+
+def _marcar_fuente(fuente, *, avisos: int | None = None, error: str | None = None) -> None:
+    """Guarda en la fuente cómo le fue, para poder verlo en la pantalla."""
+    if fuente is None:
+        return
+    fuente.ultima_corrida = ahora()
+    fuente.avisos_ultima_corrida = avisos
+    fuente.ultimo_error = error
 
 
 def _cerrar_corrida(
