@@ -1,0 +1,21 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "_comentario": [
+    "Configuración del servicio de ingesta diaria (el cron), separada de la web.",
+    "En Railway: Settings → Config as code → railway.ingesta.json, y cargar el",
+    "Cron Schedule (0 9 * * * = 09:00 UTC ≈ 06:00 en Argentina).",
+    "No lleva healthcheck: este servicio corre, termina y se apaga. Si usara el",
+    "railway.json de la web, Railway esperaría una respuesta en /salud de un",
+    "proceso que ya salió y marcaría el deploy como fallido.",
+    "restartPolicyType NEVER por lo mismo: terminar no es un error, es el fin",
+    "de la corrida. Reintentar sería volver a ingestar sin motivo."
+  ],
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
+  "deploy": {
+    "startCommand": "python -m talanton.cli ingestar",
+    "restartPolicyType": "NEVER"
+  }
+}
