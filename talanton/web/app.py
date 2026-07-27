@@ -45,6 +45,11 @@ def _contexto(request: Request, **extra):
         "paises": PAISES,
         "pais_nombre": PAIS_NOMBRE,
         "score_minimo": SCORE_MINIMO_ALERTA,
+        # Opciones ya armadas para los <select>: la plantilla no debería tener
+        # que zipear listas para pintar un filtro.
+        "opciones_estado": [("", "Todos")] + [(e.value, e.etiqueta) for e in ESTADOS_KANBAN],
+        "opciones_pais": [("", "Todos")] + [(p, PAIS_NOMBRE[p]) for p in PAISES],
+        "opciones_seniority": [("", "Todos")] + [(s.value, s.etiqueta) for s in Seniority],
     }
     base.update(extra)
     return base

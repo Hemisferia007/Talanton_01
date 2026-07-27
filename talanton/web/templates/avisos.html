@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import dias_chip %}
+{% from "_macros.html" import dias_chip, filtro_texto, filtro_select %}
 {% block titulo %}Avisos · Talanton{% endblock %}
 
 {% block contenido %}
@@ -10,25 +10,15 @@
   </div>
 </div>
 
-<form class="filtros" method="get" action="/avisos">
-  <input type="text" name="q" placeholder="Puesto o empresa" value="{{ filtros.q }}">
-  <select name="estado_aviso">
-    <option value="abiertas" {{ 'selected' if filtros.estado_aviso == 'abiertas' }}>Abiertas</option>
-    <option value="urgentes" {{ 'selected' if filtros.estado_aviso == 'urgentes' }}>Sólo +45 días</option>
-    <option value="todas" {{ 'selected' if filtros.estado_aviso == 'todas' }}>Todas (incluye cerradas)</option>
-  </select>
-  <select name="pais">
-    <option value="">Todos los países</option>
-    {% for p in paises %}
-      <option value="{{ p }}" {{ 'selected' if filtros.pais == p }}>{{ pais_nombre[p] }}</option>
-    {% endfor %}
-  </select>
-  <select name="seniority">
-    <option value="">Todos los seniorities</option>
-    {% for s in seniorities %}
-      <option value="{{ s.value }}" {{ 'selected' if filtros.seniority == s.value }}>{{ s.etiqueta }}</option>
-    {% endfor %}
-  </select>
+<form class="filtros" method="get" action="/avisos" role="search">
+  {{ filtro_texto('q', 'Buscar', filtros.q, 'Puesto o empresa', '230px') }}
+  {{ filtro_select('estado_aviso', 'Mostrar', [
+      ('abiertas', 'Abiertas'),
+      ('urgentes', 'Sólo más de 45 días'),
+      ('todas', 'Todas, incluidas cerradas')
+    ], filtros.estado_aviso) }}
+  {{ filtro_select('pais', 'País', opciones_pais, filtros.pais) }}
+  {{ filtro_select('seniority', 'Seniority', opciones_seniority, filtros.seniority) }}
   <button class="btn" type="submit">Filtrar</button>
   <a class="btn btn-fantasma" href="/avisos">Limpiar</a>
 </form>
@@ -37,10 +27,15 @@
 {% if vacantes %}
   <div class="tabla-envoltorio">
   <table>
+    <caption class="sr-solo">Avisos detectados</caption>
     <thead>
       <tr>
-        <th>Abierta</th><th>Puesto</th><th>Empresa</th>
-        <th>Seniority</th><th>Ubicación</th><th>Fuente</th>
+        <th scope="col">Abierta</th>
+        <th scope="col">Puesto</th>
+        <th scope="col">Empresa</th>
+        <th scope="col">Seniority</th>
+        <th scope="col">Ubicación</th>
+        <th scope="col">Fuente</th>
       </tr>
     </thead>
     <tbody>
@@ -48,19 +43,19 @@
       <tr>
         <td>{{ dias_chip(v) }}</td>
         <td>
-          <div style="font-weight:600">{{ v.titulo }}</div>
-          <div class="tenue pequeno">
+          <div class="celda-titulo">{{ v.titulo }}</div>
+          <div class="celda-sub">
             {{ v.rol_normalizado }}{% if v.reposteos %} · republicada {{ v.reposteos }}×{% endif %}
           </div>
         </td>
-        <td class="pequeno">
+        <td>
           {% if v.empresa.lead %}<a href="/leads/{{ v.empresa.lead.id }}">{{ v.empresa.nombre }}</a>
           {% else %}{{ v.empresa.nombre }}{% endif %}
-          {% if v.publicada_por_consultora %}<span class="chip" title="El aviso lo publica una consultora">consultora</span>{% endif %}
+          {% if v.publicada_por_consultora %}<div class="celda-sub">Publicada por una consultora</div>{% endif %}
         </td>
-        <td class="pequeno">{{ v.seniority.etiqueta }}</td>
-        <td class="pequeno">{{ v.ubicacion or '—' }}</td>
-        <td class="pequeno">
+        <td>{{ v.seniority.etiqueta }}</td>
+        <td>{{ v.ubicacion or '—' }}</td>
+        <td>
           {% if v.fuente_url %}<a href="{{ v.fuente_url }}" target="_blank" rel="noopener">{{ v.fuente }}</a>
           {% else %}{{ v.fuente }}{% endif %}
         </td>

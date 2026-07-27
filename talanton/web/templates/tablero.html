@@ -4,26 +4,31 @@
 {% block clase_main %}contenedor-ancho{% endblock %}
 
 {% block contenido %}
-<div class="encabezado" style="margin-bottom:18px">
+<div class="encabezado">
   <div>
     <h1>Tablero comercial</h1>
-    <p class="subtitulo">Arrastrá las tarjetas para mover el lead de estado.</p>
+    <p class="subtitulo">
+      Arrastrá las tarjetas para cambiar de estado, o usá el selector de cada una.
+    </p>
   </div>
-  <span id="aviso-guardado" class="chip ok" style="visibility:hidden">Guardado</span>
+  {# Región viva: el resultado de mover una tarjeta se anuncia, no sólo se ve. #}
+  <p id="aviso-guardado" class="aviso chip ok" role="status" aria-live="polite"></p>
 </div>
 
 <div class="tablero">
   {% for estado in estados %}
-  <div class="columna" data-estado="{{ estado.value }}">
+  <section class="columna" data-estado="{{ estado.value }}" aria-labelledby="col-{{ estado.value }}">
     <div class="columna-encabezado">
-      <h3>{{ estado.etiqueta }}</h3>
-      <span class="cuenta">{{ columnas[estado]|length }}</span>
+      <h3 id="col-{{ estado.value }}">{{ estado.etiqueta }}</h3>
+      <span class="cuenta">
+        {{ columnas[estado]|length }}<span class="sr-solo"> leads</span>
+      </span>
     </div>
     {% for lead in columnas[estado] %}
       {% set abiertas = lead.empresa.vacantes_abiertas %}
       <article class="tarjeta" draggable="true" data-lead="{{ lead.id }}">
         <div class="nombre"><a href="/leads/{{ lead.id }}">{{ lead.empresa.nombre }}</a></div>
-        {% if lead.gancho %}<div class="gancho">{{ lead.gancho }}</div>{% endif %}
+        {% if lead.gancho %}<p class="gancho">{{ lead.gancho }}</p>{% endif %}
         <div class="meta">
           {{ score(lead.score) }}
           {% if abiertas %}
@@ -32,11 +37,22 @@
             {{ dias_chip(mas_vieja) }}
           {% endif %}
         </div>
+        {# Alternativa operable por teclado al drag & drop. #}
+        <div class="mover">
+          <label class="sr-solo" for="mover-{{ lead.id }}">
+            Mover {{ lead.empresa.nombre }} a otro estado
+          </label>
+          <select id="mover-{{ lead.id }}" class="selector-estado" data-lead="{{ lead.id }}">
+            {% for e in estados %}
+              <option value="{{ e.value }}" {{ 'selected' if lead.estado == e }}>{{ e.etiqueta }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </article>
     {% else %}
-      <p class="vacio">Vacío</p>
+      <p class="vacio">Sin leads</p>
     {% endfor %}
-  </div>
+  </section>
   {% endfor %}
 </div>
 {% endblock %}

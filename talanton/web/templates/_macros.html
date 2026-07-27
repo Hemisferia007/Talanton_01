@@ -2,9 +2,10 @@
 <span class="score {{ 'alto' if valor >= 70 else ('medio' if valor >= 50 else '') }}">{{ valor|round|int }}</span>
 {%- endmacro %}
 
+{# El color acompaña al texto, nunca lo reemplaza: los días siempre se leen. #}
 {% macro dias_chip(vacante) -%}
 {% if vacante.cerrada %}
-  <span class="chip cerrada">cerrada</span>
+  <span class="chip cerrada">Cerrada</span>
 {% elif vacante.dias_abierta >= 75 %}
   <span class="chip urgente">{{ vacante.dias_abierta }} días</span>
 {% elif vacante.dias_abierta >= 45 %}
@@ -14,6 +15,21 @@
 {% endif %}
 {%- endmacro %}
 
-{% macro empresa_linea(empresa) -%}
-{{ empresa.nombre }}{% if empresa.pais %} <span class="tenue pequeno">· {{ empresa.pais }}</span>{% endif %}
+{% macro filtro_texto(nombre, etiqueta, valor, placeholder='', ancho='200px') -%}
+<div class="filtro">
+  <label for="f-{{ nombre }}">{{ etiqueta }}</label>
+  <input type="text" id="f-{{ nombre }}" name="{{ nombre }}" value="{{ valor }}"
+         placeholder="{{ placeholder }}" style="width:{{ ancho }}">
+</div>
+{%- endmacro %}
+
+{% macro filtro_select(nombre, etiqueta, opciones, seleccionado) -%}
+<div class="filtro">
+  <label for="f-{{ nombre }}">{{ etiqueta }}</label>
+  <select id="f-{{ nombre }}" name="{{ nombre }}">
+    {% for valor, texto in opciones %}
+      <option value="{{ valor }}" {{ 'selected' if seleccionado|string == valor|string }}>{{ texto }}</option>
+    {% endfor %}
+  </select>
+</div>
 {%- endmacro %}

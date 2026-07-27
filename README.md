@@ -41,6 +41,22 @@ python -m talanton.cli ingestar  # lee fuentes.json
 | **Avisos** | Todas las vacantes detectadas, ordenadas por días abiertas |
 | **Mi empresa** | Datos de la consultora y el ICP, que alimenta el eje de *fit* del score |
 
+La interfaz está construida sobre tokens: una escala de espacio base 4, cinco tamaños
+tipográficos y una rampa de neutros sin `#000` ni `#fff`. Los bordes estructuran y las
+sombras sólo aparecen cuando algo realmente flota (una tarjeta arrastrándose). Todo
+control tiene `:focus-visible`, y hay un `prefers-reduced-motion` que apaga las
+transiciones sin romper los estados.
+
+**Accesibilidad** (WCAG 2.1 AA como piso, verificado por tests):
+
+- Todo control de formulario tiene `<label>` asociado — un placeholder no es etiqueta.
+- El kanban se opera **con teclado**: además del drag & drop, cada tarjeta tiene un
+  selector de estado que pega contra el mismo endpoint, con región `role="status"` que
+  anuncia el resultado.
+- Texto y bordes de controles verificados contra 4.5:1 y 3:1 respectivamente.
+- Enlace para saltar al contenido, `aria-current` en la navegación, tablas con `scope`
+  en los encabezados, y el estado nunca se comunica sólo por color.
+
 **Motor de scoring** con cuatro ejes ponderados —urgencia 40%, fit ICP 25%,
 accesibilidad 20%, capacidad de pago 15%— donde cada punto sumado deja una frase que lo
 justifica, más un **gancho** listo para abrir la conversación:
@@ -82,8 +98,9 @@ talanton/
   web/            FastAPI + templates + kanban
   seed.py         Datos de demo
   cli.py          init | seed | ingestar | recalcular | servir
-tests/            44 tests
+tests/            73 tests, incluidos chequeos de accesibilidad del HTML servido
 docs/             Estrategia
+.claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```
 
 ## Tests

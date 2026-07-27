@@ -10,71 +10,93 @@
   </div>
 </div>
 
+{# Una métrica manda: la que dispara la acción comercial. #}
 <div class="metricas">
+  <div class="metrica principal">
+    <div class="valor">{{ metricas.vacantes_urgentes }}</div>
+    <div class="etiqueta">Búsquedas abiertas hace más de 45 días</div>
+  </div>
   <div class="metrica">
-    <div class="valor mono">{{ metricas.leads }}</div>
+    <div class="valor">{{ metricas.leads }}</div>
     <div class="etiqueta">Leads en la base</div>
   </div>
-  <div class="metrica destacada">
-    <div class="valor mono">{{ metricas.vacantes_urgentes }}</div>
-    <div class="etiqueta">Búsquedas abiertas +45 días</div>
-  </div>
   <div class="metrica">
-    <div class="valor mono">{{ metricas.leads_en_curso }}</div>
+    <div class="valor">{{ metricas.leads_en_curso }}</div>
     <div class="etiqueta">En conversación</div>
   </div>
   <div class="metrica">
-    <div class="valor mono">{{ metricas.leads_ganados }}</div>
+    <div class="valor">{{ metricas.leads_ganados }}</div>
     <div class="etiqueta">Ganados</div>
   </div>
 </div>
 
-<div class="grid-2">
-  <section class="panel">
-    <h2>Para atacar hoy</h2>
-    <p class="tenue pequeno" style="margin-top:-8px">Leads nuevos con score ≥ {{ score_minimo }}.</p>
+{# Los dos bloques van apilados a ancho completo: cada uno crece con su
+   contenido en vez de dejar un hueco al lado del más corto. #}
+<div class="pila">
+  <section class="panel" aria-labelledby="t-hoy">
+    <h2 id="t-hoy">Para atacar hoy</h2>
+    <p class="subtitulo">Leads nuevos con score ≥ {{ score_minimo }}, ordenados por prioridad.</p>
     {% if prioritarios %}
       <div class="tabla-envoltorio">
       <table>
-        <thead><tr><th>Empresa</th><th>Señal principal</th><th>Score</th></tr></thead>
+        <caption class="sr-solo">Leads nuevos por encima del umbral</caption>
+        <thead>
+          <tr>
+            <th scope="col">Score</th>
+            <th scope="col">Empresa</th>
+            <th scope="col">Señal principal</th>
+            <th scope="col">Búsquedas abiertas</th>
+          </tr>
+        </thead>
         <tbody>
         {% for lead in prioritarios %}
-          <tr onclick="location.href='/leads/{{ lead.id }}'" style="cursor:pointer">
-            <td>
-              <div style="font-weight:600">{{ lead.empresa.nombre }}</div>
-              <div class="tenue pequeno">{{ lead.empresa.industria or 'Sin industria' }}</div>
-            </td>
-            <td class="pequeno">{{ lead.lista_razones[0] if lead.lista_razones else '—' }}</td>
+          {% set abiertas = lead.empresa.vacantes_abiertas %}
+          <tr class="enlazada">
             <td>{{ score(lead.score) }}</td>
+            <td>
+              <a class="celda-titulo" href="/leads/{{ lead.id }}">{{ lead.empresa.nombre }}</a>
+              <div class="celda-sub">
+                {{ lead.empresa.industria or 'Sin industria' }} ·
+                {{ pais_nombre.get(lead.empresa.pais, 'País desconocido') }}
+              </div>
+            </td>
+            <td>{{ lead.lista_razones[0] if lead.lista_razones else '—' }}</td>
+            <td class="num">{{ abiertas|length }}</td>
           </tr>
         {% endfor %}
         </tbody>
       </table>
       </div>
     {% else %}
-      <p class="vacio">Nada por encima del umbral. Corré la ingesta o bajá el score mínimo.</p>
+      <p class="vacio">Nada por encima del umbral. Corré la ingesta o bajá el score mínimo en Mi empresa.</p>
     {% endif %}
   </section>
 
-  <section class="panel">
-    <h2>Búsquedas que se les están estirando</h2>
-    <p class="tenue pequeno" style="margin-top:-8px">Ordenadas por días abiertas. Es el mejor momento para llamar.</p>
+  <section class="panel" aria-labelledby="t-estirando">
+    <h2 id="t-estirando">Se les está estirando</h2>
+    <p class="subtitulo">Las búsquedas más viejas todavía abiertas. Es el mejor momento para llamar.</p>
     {% if urgentes %}
       <div class="tabla-envoltorio">
       <table>
-        <thead><tr><th>Puesto</th><th>Empresa</th><th>Abierta</th></tr></thead>
+        <caption class="sr-solo">Búsquedas abiertas hace más de 45 días</caption>
+        <thead>
+          <tr>
+            <th scope="col">Abierta</th>
+            <th scope="col">Puesto</th>
+            <th scope="col">Empresa</th>
+            <th scope="col">Ubicación</th>
+          </tr>
+        </thead>
         <tbody>
         {% for v in urgentes %}
           <tr>
+            <td>{{ dias_chip(v) }}</td>
+            <td class="celda-titulo">{{ v.titulo }}</td>
             <td>
-              <div style="font-weight:600">{{ v.titulo }}</div>
-              <div class="tenue pequeno">{{ v.ubicacion or 'Sin ubicación' }}</div>
-            </td>
-            <td class="pequeno">
               {% if v.empresa.lead %}<a href="/leads/{{ v.empresa.lead.id }}">{{ v.empresa.nombre }}</a>
               {% else %}{{ v.empresa.nombre }}{% endif %}
             </td>
-            <td>{{ dias_chip(v) }}</td>
+            <td>{{ v.ubicacion or 'Sin ubicación' }}</td>
           </tr>
         {% endfor %}
         </tbody>

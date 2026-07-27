@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import score, dias_chip %}
+{% from "_macros.html" import score, dias_chip, filtro_texto, filtro_select %}
 {% block titulo %}Leads · Talanton{% endblock %}
 
 {% block contenido %}
@@ -10,26 +10,18 @@
   </div>
 </div>
 
-<form class="filtros" method="get" action="/leads">
-  <input type="text" name="q" placeholder="Empresa, industria o dominio" value="{{ filtros.q }}">
-  <select name="estado">
-    <option value="">Todos los estados</option>
-    {% for e in estados %}
-      <option value="{{ e.value }}" {{ 'selected' if filtros.estado == e.value }}>{{ e.etiqueta }}</option>
-    {% endfor %}
-  </select>
-  <select name="pais">
-    <option value="">Todos los países</option>
-    {% for p in paises %}
-      <option value="{{ p }}" {{ 'selected' if filtros.pais == p }}>{{ pais_nombre[p] }}</option>
-    {% endfor %}
-  </select>
-  <input type="number" name="score_min" placeholder="Score mín." min="0" max="100" value="{{ filtros.score_min }}" style="width:110px">
-  <select name="orden">
-    <option value="score" {{ 'selected' if filtros.orden == 'score' }}>Por score</option>
-    <option value="reciente" {{ 'selected' if filtros.orden == 'reciente' }}>Más recientes</option>
-    <option value="nombre" {{ 'selected' if filtros.orden == 'nombre' }}>Por nombre</option>
-  </select>
+<form class="filtros" method="get" action="/leads" role="search">
+  {{ filtro_texto('q', 'Buscar', filtros.q, 'Empresa, industria o dominio', '230px') }}
+  {{ filtro_select('estado', 'Estado', opciones_estado, filtros.estado) }}
+  {{ filtro_select('pais', 'País', opciones_pais, filtros.pais) }}
+  <div class="filtro">
+    <label for="f-score">Score mínimo</label>
+    <input type="number" id="f-score" name="score_min" min="0" max="100"
+           value="{{ filtros.score_min }}" style="width:110px">
+  </div>
+  {{ filtro_select('orden', 'Ordenar por',
+      [('score', 'Score'), ('reciente', 'Actividad reciente'), ('nombre', 'Nombre')],
+      filtros.orden) }}
   <button class="btn" type="submit">Filtrar</button>
   <a class="btn btn-fantasma" href="/leads">Limpiar</a>
 </form>
@@ -38,33 +30,37 @@
 {% if leads %}
   <div class="tabla-envoltorio">
   <table>
+    <caption class="sr-solo">Listado de leads</caption>
     <thead>
       <tr>
-        <th>Score</th><th>Empresa</th><th>Búsquedas abiertas</th>
-        <th>Señal principal</th><th>Estado</th>
+        <th scope="col">Score</th>
+        <th scope="col">Empresa</th>
+        <th scope="col">Búsquedas abiertas</th>
+        <th scope="col">Señal principal</th>
+        <th scope="col">Estado</th>
       </tr>
     </thead>
     <tbody>
     {% for lead in leads %}
       {% set abiertas = lead.empresa.vacantes_abiertas %}
-      <tr onclick="location.href='/leads/{{ lead.id }}'" style="cursor:pointer">
+      <tr class="enlazada">
         <td>{{ score(lead.score) }}</td>
         <td>
-          <div style="font-weight:600">{{ lead.empresa.nombre }}</div>
-          <div class="tenue pequeno">
+          <a class="celda-titulo" href="/leads/{{ lead.id }}">{{ lead.empresa.nombre }}</a>
+          <div class="celda-sub">
             {{ lead.empresa.industria or 'Sin industria' }} · {{ lead.empresa.tamano_etiqueta }}
           </div>
         </td>
         <td>
           {% if abiertas %}
-            <span class="mono">{{ abiertas|length }}</span>
+            <span class="num">{{ abiertas|length }}</span>
             {% set mas_vieja = abiertas|sort(attribute='dias_abierta')|last %}
             {{ dias_chip(mas_vieja) }}
           {% else %}
-            <span class="tenue pequeno">ninguna</span>
+            <span class="tenue">Ninguna</span>
           {% endif %}
         </td>
-        <td class="pequeno">{{ lead.lista_razones[0] if lead.lista_razones else '—' }}</td>
+        <td>{{ lead.lista_razones[0] if lead.lista_razones else '—' }}</td>
         <td><span class="chip {{ 'ok' if lead.estado.value == 'ganado' }}">{{ lead.estado.etiqueta }}</span></td>
       </tr>
     {% endfor %}
@@ -72,7 +68,10 @@
   </table>
   </div>
 {% else %}
-  <p class="vacio">No hay leads que coincidan. Probá limpiar los filtros o correr la ingesta con <code>python -m talanton.cli ingestar</code>.</p>
+  <p class="vacio">
+    No hay leads que coincidan con el filtro. Probá limpiarlo, o cargá datos con
+    <code>python -m talanton.cli ingestar</code>.
+  </p>
 {% endif %}
 </div>
 {% endblock %}

@@ -7,24 +7,31 @@
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
+<a class="saltar" href="#contenido">Saltar al contenido</a>
+
 <header class="topbar">
   <a class="marca" href="/">
-    <span class="logo">T</span>
+    <span class="logo" aria-hidden="true">T</span>
     <span>Talanton</span>
   </a>
-  <nav>
-    <a href="/" class="{{ 'activo' if request.url.path == '/' }}">Panel</a>
-    <a href="/tablero" class="{{ 'activo' if request.url.path == '/tablero' }}">Tablero</a>
-    <a href="/leads" class="{{ 'activo' if request.url.path.startswith('/leads') }}">Leads</a>
-    <a href="/avisos" class="{{ 'activo' if request.url.path == '/avisos' }}">Avisos</a>
-    <a href="/mi-empresa" class="{{ 'activo' if request.url.path == '/mi-empresa' }}">Mi empresa</a>
+  <nav aria-label="Secciones">
+    {% set ruta = request.url.path %}
+    {% for href, texto, activa in [
+      ('/', 'Panel', ruta == '/'),
+      ('/tablero', 'Tablero', ruta == '/tablero'),
+      ('/leads', 'Leads', ruta.startswith('/leads')),
+      ('/avisos', 'Avisos', ruta == '/avisos'),
+      ('/mi-empresa', 'Mi empresa', ruta == '/mi-empresa')
+    ] %}
+      <a href="{{ href }}" {% if activa %}aria-current="page"{% endif %}>{{ texto }}</a>
+    {% endfor %}
   </nav>
   <form method="post" action="/recalcular" class="accion-topbar">
-    <button class="btn btn-fantasma" type="submit" title="Recalcular todos los scores">Recalcular</button>
+    <button class="btn btn-fantasma" type="submit">Recalcular scores</button>
   </form>
 </header>
 
-<main class="{% block clase_main %}contenedor{% endblock %}">
+<main id="contenido" class="{% block clase_main %}contenedor{% endblock %}">
   {% block contenido %}{% endblock %}
 </main>
 

@@ -5,24 +5,27 @@
 <div class="encabezado">
   <div>
     <h1>Mi empresa</h1>
-    <p class="subtitulo">Los datos de la consultora y el perfil de cliente ideal (ICP) que alimenta el scoring.</p>
+    <p class="subtitulo">
+      Los datos de la consultora y el perfil de cliente ideal que alimenta el eje de
+      <em>fit</em> del scoring.
+    </p>
   </div>
 </div>
 
 <div class="metricas">
-  <div class="metrica"><div class="valor mono">{{ metricas.empresas }}</div><div class="etiqueta">Empresas rastreadas</div></div>
-  <div class="metrica"><div class="valor mono">{{ metricas.vacantes_abiertas }}</div><div class="etiqueta">Avisos abiertos</div></div>
-  <div class="metrica"><div class="valor mono">{{ metricas.leads_calientes }}</div><div class="etiqueta">Leads con score ≥ 70</div></div>
-  <div class="metrica"><div class="valor mono">{{ metricas.leads_ganados }}</div><div class="etiqueta">Ganados</div></div>
+  <div class="metrica"><div class="valor">{{ metricas.empresas }}</div><div class="etiqueta">Empresas rastreadas</div></div>
+  <div class="metrica"><div class="valor">{{ metricas.vacantes_abiertas }}</div><div class="etiqueta">Avisos abiertos</div></div>
+  <div class="metrica"><div class="valor">{{ metricas.leads_calientes }}</div><div class="etiqueta">Leads con score ≥ 70</div></div>
+  <div class="metrica"><div class="valor">{{ metricas.leads_ganados }}</div><div class="etiqueta">Ganados</div></div>
 </div>
 
 <form method="post" action="/mi-empresa">
   <div class="grid-2">
-    <section class="panel">
-      <h2>Datos de la consultora</h2>
+    <section class="panel" aria-labelledby="t-consultora">
+      <h2 id="t-consultora">Datos de la consultora</h2>
       <div class="campo">
         <label for="nombre">Nombre</label>
-        <input type="text" id="nombre" name="nombre" style="width:100%" value="{{ perfil.nombre }}">
+        <input type="text" id="nombre" name="nombre" value="{{ perfil.nombre }}" required>
       </div>
       <div class="campo">
         <label for="descripcion">Descripción</label>
@@ -30,47 +33,51 @@
       </div>
       <div class="campo">
         <label for="sitio_web">Sitio web</label>
-        <input type="text" id="sitio_web" name="sitio_web" style="width:100%" value="{{ perfil.sitio_web or '' }}">
+        <input type="text" id="sitio_web" name="sitio_web" value="{{ perfil.sitio_web or '' }}">
       </div>
       <div class="campo">
         <label for="email_contacto">Email de contacto</label>
-        <input type="email" id="email_contacto" name="email_contacto" style="width:100%" value="{{ perfil.email_contacto or '' }}">
+        <input type="email" id="email_contacto" name="email_contacto" value="{{ perfil.email_contacto or '' }}">
       </div>
       <div class="campo">
-        <label for="fee_promedio">Fee promedio por búsqueda (USD)</label>
-        <input type="number" id="fee_promedio" name="fee_promedio" style="width:100%" value="{{ perfil.fee_promedio or '' }}">
+        <label for="fee_promedio">Fee promedio por búsqueda</label>
+        <input type="number" id="fee_promedio" name="fee_promedio" min="0" value="{{ perfil.fee_promedio or '' }}">
+        <p class="ayuda">En dólares. Se usa como referencia comercial.</p>
       </div>
     </section>
 
-    <section class="panel">
-      <h2>Perfil de cliente ideal</h2>
-      <p class="tenue pequeno" style="margin-top:-8px">
-        Define el eje de <em>fit</em> del score. Al guardar se recalculan todos los leads.
-      </p>
+    <section class="panel" aria-labelledby="t-icp">
+      <h2 id="t-icp">Perfil de cliente ideal</h2>
+      <p class="subtitulo">Al guardar se recalculan todos los scores.</p>
       <div class="campo">
         <label for="paises_objetivo">Países objetivo</label>
-        <input type="text" id="paises_objetivo" name="paises_objetivo" style="width:100%" value="{{ perfil.paises_objetivo }}">
-        <div class="ayuda">Códigos separados por coma. Disponibles: {{ paises|join(', ') }}</div>
+        <input type="text" id="paises_objetivo" name="paises_objetivo"
+               value="{{ perfil.paises_objetivo }}" aria-describedby="ayuda-paises">
+        <p class="ayuda" id="ayuda-paises">Códigos separados por coma. Disponibles: {{ paises|join(', ') }}.</p>
       </div>
       <div class="campo">
         <label for="industrias_objetivo">Industrias objetivo</label>
-        <input type="text" id="industrias_objetivo" name="industrias_objetivo" style="width:100%" value="{{ perfil.industrias_objetivo }}">
-        <div class="ayuda">Separadas por coma. Vacío = todas.</div>
+        <input type="text" id="industrias_objetivo" name="industrias_objetivo"
+               value="{{ perfil.industrias_objetivo }}" aria-describedby="ayuda-industrias">
+        <p class="ayuda" id="ayuda-industrias">Separadas por coma. Si se deja vacío, no filtra por industria.</p>
       </div>
-      <div class="campo" style="display:flex; gap:12px">
+      <div class="campo" style="display:flex; gap:var(--s3)">
         <div style="flex:1">
           <label for="dotacion_min">Dotación mínima</label>
-          <input type="number" id="dotacion_min" name="dotacion_min" style="width:100%" value="{{ perfil.dotacion_min }}">
+          <input type="number" id="dotacion_min" name="dotacion_min" min="0" value="{{ perfil.dotacion_min }}">
         </div>
         <div style="flex:1">
           <label for="dotacion_max">Dotación máxima</label>
-          <input type="number" id="dotacion_max" name="dotacion_max" style="width:100%" value="{{ perfil.dotacion_max }}">
+          <input type="number" id="dotacion_max" name="dotacion_max" min="0" value="{{ perfil.dotacion_max }}">
         </div>
       </div>
       <div class="campo">
         <label for="seniorities_objetivo">Seniorities que cubrimos mejor</label>
-        <input type="text" id="seniorities_objetivo" name="seniorities_objetivo" style="width:100%" value="{{ perfil.seniorities_objetivo }}">
-        <div class="ayuda">Valores: {{ seniorities|map(attribute='value')|join(', ') }}</div>
+        <input type="text" id="seniorities_objetivo" name="seniorities_objetivo"
+               value="{{ perfil.seniorities_objetivo }}" aria-describedby="ayuda-seniority">
+        <p class="ayuda" id="ayuda-seniority">
+          Valores: {{ seniorities|map(attribute='value')|join(', ') }}.
+        </p>
       </div>
       <button class="btn" type="submit">Guardar y recalcular</button>
     </section>
