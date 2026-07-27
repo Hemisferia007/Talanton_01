@@ -1,6 +1,7 @@
 """CLI de Talanton.
 
     python -m talanton.cli init         crea la base
+    python -m talanton.cli usuario      crea un usuario para entrar
     python -m talanton.cli seed         carga datos de demo
     python -m talanton.cli ingestar     corre la ingesta (fuentes.json)
     python -m talanton.cli recalcular   recalcula todos los scores
@@ -67,6 +68,26 @@ def _recalcular(_args) -> int:
     return 0
 
 
+def _usuario(args) -> int:
+    import getpass
+
+    from . import auth
+
+    init_db()
+    email = args.email or input("Email: ").strip()
+    nombre = args.nombre or input("Nombre: ").strip()
+    password = args.password or getpass.getpass("Contraseña (mínimo 10 caracteres): ")
+
+    with get_session() as session:
+        try:
+            usuario = auth.crear_usuario(session, email, nombre, password)
+        except ValueError as exc:
+            print(f"Error: {exc}")
+            return 1
+        print(f"Usuario {usuario.email} creado.")
+    return 0
+
+
 def _servir(args) -> int:
     import uvicorn
 
@@ -83,6 +104,15 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("seed", help="carga datos de demo").set_defaults(fn=_seed)
     sub.add_parser("ingestar", help="corre la ingesta diaria").set_defaults(fn=_ingestar)
     sub.add_parser("recalcular", help="recalcula los scores").set_defaults(fn=_recalcular)
+
+    usuario = sub.add_parser("usuario", help="crea un usuario para entrar a la web")
+    usuario.add_argument("--email")
+    usuario.add_argument("--nombre")
+    usuario.add_argument(
+        "--password",
+        help="si se omite, se pide por consola sin mostrarla (preferible: no queda en el historial)",
+    )
+    usuario.set_defaults(fn=_usuario)
 
     servir = sub.add_parser("servir", help="levanta la web")
     servir.add_argument("--host", default="127.0.0.1")

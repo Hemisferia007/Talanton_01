@@ -26,9 +26,18 @@
       <a href="{{ href }}" {% if activa %}aria-current="page"{% endif %}>{{ texto }}</a>
     {% endfor %}
   </nav>
-  <form method="post" action="/recalcular" class="accion-topbar">
-    <button class="btn btn-fantasma" type="submit">Recalcular scores</button>
-  </form>
+  <div class="accion-topbar">
+    <form method="post" action="/recalcular">
+      <button class="btn btn-fantasma" type="submit">Recalcular scores</button>
+    </form>
+    {% if usuario %}
+    <form method="post" action="/logout">
+      <button class="btn btn-fantasma" type="submit">
+        Salir<span class="sr-solo"> — sesión de {{ usuario.nombre }}</span>
+      </button>
+    </form>
+    {% endif %}
+  </div>
 </header>
 
 <main id="contenido" class="{% block clase_main %}contenedor{% endblock %}">

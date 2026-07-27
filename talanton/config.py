@@ -41,9 +41,33 @@ GMAIL_SCOPES = "https://www.googleapis.com/auth/gmail.send openid email"
 # genera una en data/ con permisos 600 — ver correo/cripto.py.
 SECRET_KEY = os.getenv("TALANTON_SECRET_KEY", "")
 
+# --- Sesiones ----------------------------------------------------------------
+# Firma la cookie de sesión. Si cambia, se cierran todas las sesiones abiertas.
+SESSION_SECRET = os.getenv("TALANTON_SESSION_SECRET", "")
+# Duración de la sesión. Una jornada larga: se entra a la mañana y no molesta.
+SESSION_MAX_AGE = int(os.getenv("TALANTON_SESSION_MAX_AGE", str(12 * 3600)))
+# En producción la cookie tiene que viajar sólo por HTTPS.
+COOKIES_SEGURAS = os.getenv("TALANTON_COOKIES_SEGURAS", "").lower() in ("1", "true", "si")
+
 # Tope diario de envíos por cuenta. Gmail corta en 500 (cuentas gratuitas) y
 # 2000 (Workspace); quedarse bien por debajo protege la reputación del dominio.
 LIMITE_ENVIOS_DIARIOS = int(os.getenv("TALANTON_LIMITE_ENVIOS_DIARIOS", "40"))
 
 def gmail_configurado() -> bool:
     return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+
+
+def secreto_de_sesion() -> str:
+    """Devuelve el secreto de sesión, generando uno efímero si falta.
+
+    En desarrollo alcanza con uno al vuelo: sólo implica que reiniciar el
+    servidor cierra las sesiones. En producción hay que fijarlo por entorno,
+    porque con varios procesos cada uno tendría el suyo y nadie quedaría logueado.
+    """
+    if SESSION_SECRET:
+        return SESSION_SECRET
+    if SECRET_KEY:
+        return SECRET_KEY
+    import secrets as _secrets
+
+    return _secrets.token_urlsafe(32)

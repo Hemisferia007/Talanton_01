@@ -34,3 +34,42 @@ def session_con_demo(session):
 
     sembrar(session)
     return session
+
+
+EMAIL_PRUEBA = "test@talanton.com.ar"
+PASSWORD_PRUEBA = "contrasena-de-prueba"
+
+
+@pytest.fixture()
+def usuario(session):
+    from talanton import auth
+
+    u = auth.crear_usuario(session, EMAIL_PRUEBA, "Usuaria de prueba", PASSWORD_PRUEBA)
+    session.commit()
+    return u
+
+
+@pytest.fixture()
+def cliente(session_con_demo, usuario):
+    """Cliente ya logueado. Toda la app exige sesión."""
+    from fastapi.testclient import TestClient
+
+    from talanton.web.app import app
+
+    c = TestClient(app)
+    respuesta = c.post(
+        "/login",
+        data={"email": EMAIL_PRUEBA, "password": PASSWORD_PRUEBA},
+        follow_redirects=False,
+    )
+    assert respuesta.status_code == 303, "el login de prueba falló"
+    return c
+
+
+@pytest.fixture()
+def cliente_anonimo(session):
+    from fastapi.testclient import TestClient
+
+    from talanton.web.app import app
+
+    return TestClient(app)

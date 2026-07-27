@@ -1,0 +1,57 @@
+# Talanton completo: web, Postgres y la corrida diaria de ingesta.
+#
+#   cp .env.ejemplo .env    # y completar
+#   docker compose up -d
+#   docker compose exec web python -m talanton.cli usuario
+
+services:
+  base:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: talanton
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: talanton
+    volumes:
+      # El volumen es el activo del producto: acá vive el histórico.
+      - datos_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U talanton"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  web:
+    build: .
+    environment:
+      TALANTON_DATABASE_URL: postgresql://talanton:${POSTGRES_PASSWORD}@base:5432/talanton
+      TALANTON_SECRET_KEY: ${TALANTON_SECRET_KEY:?definir TALANTON_SECRET_KEY en .env}
+      TALANTON_SESSION_SECRET: ${TALANTON_SESSION_SECRET:?definir TALANTON_SESSION_SECRET en .env}
+      TALANTON_COOKIES_SEGURAS: ${TALANTON_COOKIES_SEGURAS:-1}
+      TALANTON_GOOGLE_CLIENT_ID: ${TALANTON_GOOGLE_CLIENT_ID:-}
+      TALANTON_GOOGLE_CLIENT_SECRET: ${TALANTON_GOOGLE_CLIENT_SECRET:-}
+      TALANTON_OAUTH_REDIRECT_URI: ${TALANTON_OAUTH_REDIRECT_URI:-}
+      TALANTON_LIMITE_ENVIOS_DIARIOS: ${TALANTON_LIMITE_ENVIOS_DIARIOS:-40}
+    ports:
+      - "${PUERTO:-8000}:8000"
+    depends_on:
+      base:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Corrida diaria de ingesta. Cada día que no corre es histórico perdido, y el
+  # histórico es lo que ningún competidor puede improvisar.
+  ingesta:
+    build: .
+    environment:
+      TALANTON_DATABASE_URL: postgresql://talanton:${POSTGRES_PASSWORD}@base:5432/talanton
+      TALANTON_SECRET_KEY: ${TALANTON_SECRET_KEY}
+      HORA_INGESTA: ${HORA_INGESTA:-06}
+    entrypoint: ["/bin/sh", "/app/scripts/ingesta-diaria.sh"]
+    depends_on:
+      base:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  datos_postgres:

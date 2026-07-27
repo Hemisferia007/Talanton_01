@@ -1,14 +1,9 @@
 import pytest
-from fastapi.testclient import TestClient
 
 from talanton import services
 from talanton.models import EstadoLead
-from talanton.web.app import app
 
 
-@pytest.fixture()
-def cliente(session_con_demo):
-    return TestClient(app)
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar · Talanton</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="pantalla-login">
+<main class="caja-login">
+  <div class="marca-login">
+    <span class="logo" aria-hidden="true">T</span>
+    <span>Talanton</span>
+  </div>
+
+  {% if error %}
+    <p class="alerta alerta-error" role="alert">{{ error }}</p>
+  {% endif %}
+
+  {% if sin_usuarios %}
+    <p class="alerta alerta-ok" role="status">
+      Todavía no hay ningún usuario. Creá el primero desde la consola:<br>
+      <code>python -m talanton.cli usuario</code>
+    </p>
+  {% endif %}
+
+  <form method="post" action="/login">
+    <input type="hidden" name="siguiente" value="{{ siguiente }}">
+    <div class="campo">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" autocomplete="username" required autofocus>
+    </div>
+    <div class="campo">
+      <label for="password">Contraseña</label>
+      <input type="password" id="password" name="password"
+             autocomplete="current-password" required>
+    </div>
+    <button class="btn" type="submit" style="width:100%">Entrar</button>
+  </form>
+</main>
+</body>
+</html>

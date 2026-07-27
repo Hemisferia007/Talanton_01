@@ -280,6 +280,22 @@ class Actividad(Base):
     lead: Mapped[Lead] = relationship(back_populates="actividades")
 
 
+class Usuario(Base):
+    """Quién puede entrar. La app maneja datos de contacto de terceros y
+    credenciales de Gmail: no puede quedar abierta a quien tenga la URL."""
+
+    __tablename__ = "usuarios"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    # scrypt con salt por usuario. Formato: scrypt$n$r$p$salt_hex$hash_hex
+    password_hash: Mapped[str] = mapped_column(String(400))
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
+    ultimo_ingreso: Mapped[datetime | None] = mapped_column(DateTime)
+
+
 class CuentaGmail(Base):
     """Una casilla conectada por OAuth desde la que se manda.
 

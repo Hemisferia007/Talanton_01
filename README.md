@@ -18,9 +18,14 @@ Estrategia completa, señales y roadmap: [`docs/estrategia-leads.md`](docs/estra
 
 ```bash
 pip install -r requirements.txt
+python -m talanton.cli usuario   # crea el usuario para entrar
 python -m talanton.cli seed      # datos de demo (empresas ficticias AR/LatAm)
 python -m talanton.cli servir    # http://127.0.0.1:8000
 ```
+
+No hay registro abierto: los usuarios se crean por consola. La app maneja datos de
+contacto de terceros y credenciales de Gmail, así que **todas las rutas exigen sesión**
+salvo el login, lo estático y el health check.
 
 Para la ingesta real hace falta además el navegador de Scrapling:
 
@@ -102,6 +107,25 @@ Las fuentes se declaran en [`fuentes.json`](fuentes.json).
 - Los roles se normalizan (`Programador Full-Stack Ssr` ≡ `Full Stack Developer Senior`),
   sin lo cual las señales de reposteo y recurrencia directamente no existen.
 
+## Poner esto en línea
+
+```bash
+cp .env.ejemplo .env    # y completar los tres secretos
+docker compose up -d
+docker compose exec web python -m talanton.cli usuario
+```
+
+Levanta web, Postgres y la corrida diaria de ingesta. El paso a paso, las alternativas
+gestionadas y los backups están en [`docs/despliegue.md`](docs/despliegue.md).
+
+**GitHub Pages no sirve para esto**: publica archivos estáticos, y Talanton es un
+servidor con base de datos, sesiones y callback de OAuth. Además el repo de Pages es
+público, y acá hay datos de contacto y credenciales de Gmail.
+
+**Postgres, no SQLite, en cualquier despliegue.** Con disco efímero un reinicio se lleva
+la base, y la base *es* el producto: el histórico de días abiertos y reposteos no se
+reconstruye mirando los avisos de hoy.
+
 ## Estructura
 
 ```
@@ -112,11 +136,13 @@ talanton/
   services.py     Upserts, cierre de vacantes, kanban, consultas
   ingest/         Conectores y corrida diaria
   correo/         Gmail: OAuth, cifrado de tokens, plantillas y envío
+  auth.py         Hash scrypt, login, sesiones
   web/            FastAPI + templates + kanban + ventana de redacción
   seed.py         Datos de demo
-  cli.py          init | seed | ingestar | recalcular | servir
-tests/            96 tests, incluidos chequeos de accesibilidad del HTML servido
-docs/             Estrategia y alta de Gmail
+  cli.py          init | usuario | seed | ingestar | recalcular | servir
+migraciones/      Alembic
+tests/            140 tests: dominio, web, accesibilidad, correo, auth y migraciones
+docs/             Estrategia, alta de Gmail y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```
 

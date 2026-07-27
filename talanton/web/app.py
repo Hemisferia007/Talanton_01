@@ -14,13 +14,18 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from .. import services
+from starlette.middleware.sessions import SessionMiddleware
+
+from .. import auth, services
 from ..config import (
+    COOKIES_SEGURAS,
     LIMITE_ENVIOS_DIARIOS,
     PAISES,
     PAIS_NOMBRE,
     SCORE_MINIMO_ALERTA,
+    SESSION_MAX_AGE,
     gmail_configurado,
+    secreto_de_sesion,
 )
 from ..correo import servicio as correo
 from ..correo import gmail as api_gmail
@@ -32,9 +37,14 @@ from ..models import (
     EstadoLead,
     Lead,
     Seniority,
+    Usuario,
 )
 
 COOKIE_ESTADO_OAUTH = "talanton_oauth_state"
+
+# Lo único accesible sin sesión. Todo lo demás pasa por el middleware, así una
+# ruta nueva queda protegida por omisión en vez de por acordarse.
+RUTAS_PUBLICAS = ("/login", "/static", "/salud")
 
 BASE = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE / "templates"))
@@ -50,9 +60,120 @@ app = FastAPI(title="Talanton CRM", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE / "static")), name="static")
 
 
+@app.middleware("http")
+async def exigir_sesion(request: Request, call_next):
+    if request.url.path.startswith(RUTAS_PUBLICAS):
+        return await call_next(request)
+
+    usuario = _usuario_de_sesion(request)
+    if usuario is None:
+        request.session.clear()
+        # Las llamadas de la interfaz esperan JSON; devolverles el HTML del
+        # login las haría fallar de forma confusa.
+        if request.url.path.startswith("/api/"):
+            return JSONResponse({"error": "Sesión expirada"}, status_code=401)
+        from urllib.parse import quote
+
+        destino = quote(request.url.path)
+        return RedirectResponse(f"/login?siguiente={destino}", status_code=303)
+
+    # Queda disponible para las plantillas sin repetir la consulta en cada ruta.
+    request.state.usuario = usuario
+    return await call_next(request)
+
+
+# Se agrega DESPUÉS de exigir_sesion a propósito: en Starlette el último
+# middleware registrado queda por fuera, y exigir_sesion necesita que
+# request.session ya exista cuando corre.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=secreto_de_sesion(),
+    max_age=SESSION_MAX_AGE,
+    same_site="lax",  # sobrevive la vuelta de Google en el OAuth
+    https_only=COOKIES_SEGURAS,
+)
+
+
+def _usuario_de_sesion(request: Request) -> Usuario | None:
+    """Resuelve el usuario de la cookie. Un usuario dado de baja pierde la
+    sesión de inmediato, sin esperar a que la cookie venza."""
+    uid = request.session.get("usuario_id")
+    if not uid:
+        return None
+    from ..db import SessionLocal
+
+    with SessionLocal() as db:
+        usuario = db.get(Usuario, uid)
+        return usuario if usuario and usuario.activo else None
+
+
+# --- Login -------------------------------------------------------------------
+
+
+@app.get("/salud")
+def salud():
+    """Para el health check del hosting."""
+    return {"ok": True}
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_form(request: Request, siguiente: str = "/", db: Session = Depends(db_dependency)):
+    if request.session.get("usuario_id"):
+        return RedirectResponse(siguiente, status_code=303)
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {
+            "request": request,
+            "siguiente": siguiente,
+            "sin_usuarios": not auth.hay_usuarios(db),
+            "error": None,
+        },
+    )
+
+
+@app.post("/login", response_class=HTMLResponse)
+def login(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    siguiente: str = Form("/"),
+    db: Session = Depends(db_dependency),
+):
+    usuario = auth.autenticar(db, email, password)
+    if usuario is None:
+        db.commit()
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {
+                "request": request,
+                "siguiente": siguiente,
+                "sin_usuarios": not auth.hay_usuarios(db),
+                "error": "Email o contraseña incorrectos.",
+            },
+            status_code=401,
+        )
+
+    db.commit()
+    # Sesión nueva al iniciar: evita fijación de sesión.
+    request.session.clear()
+    request.session["usuario_id"] = usuario.id
+    # Sólo rutas internas: un "siguiente" con URL absoluta sería un redirect abierto.
+    destino = siguiente if siguiente.startswith("/") and not siguiente.startswith("//") else "/"
+    return RedirectResponse(destino, status_code=303)
+
+
+@app.post("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse("/login", status_code=303)
+
+
 def _contexto(request: Request, **extra):
     base = {
         "request": request,
+        "usuario": getattr(request.state, "usuario", None),
         "estados": ESTADOS_KANBAN,
         "paises": PAISES,
         "pais_nombre": PAIS_NOMBRE,

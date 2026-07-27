@@ -8,17 +8,12 @@ con encabezados declarados y una alternativa por teclado al drag & drop.
 from html.parser import HTMLParser
 
 import pytest
-from fastapi.testclient import TestClient
 
 from talanton import services
-from talanton.web.app import app
 
 RUTAS = ["/", "/leads", "/tablero", "/avisos", "/mi-empresa"]
 
 
-@pytest.fixture()
-def cliente(session_con_demo):
-    return TestClient(app)
 
 
 class Recolector(HTMLParser):
