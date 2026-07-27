@@ -19,6 +19,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from .. import auth, services
 from ..config import (
     COOKIES_SEGURAS,
+    apify_configurado,
     LIMITE_ENVIOS_DIARIOS,
     PAISES,
     PAIS_NOMBRE,
@@ -407,6 +408,7 @@ def fuentes(
             request,
             objetivos=fuentes_db.listar_objetivos(db),
             fuentes=fuentes_db.listar_fuentes(db),
+            apify_listo=apify_configurado(),
             mensaje=mensaje,
             error=error,
         ),
@@ -452,6 +454,30 @@ def sondear_objetivo(objetivo_id: int, db: Session = Depends(db_dependency)):
             f"{objetivo.nombre}: no se encontró dónde publica. "
             "Puede que use sólo portales de empleo, o que el dominio no sea el correcto."
         )
+    )
+
+
+@app.post("/fuentes/busquedas")
+def agregar_busqueda(
+    nombre: str = Form(...),
+    configuracion: str = Form(...),
+    db: Session = Depends(db_dependency),
+):
+    """Alta de una búsqueda de LinkedIn vía Apify."""
+    from ..ingest.apify import ErrorApify
+
+    try:
+        nueva = fuentes_db.agregar_busqueda_linkedin(
+            db, nombre=nombre, configuracion=configuracion
+        )
+    except ErrorApify as exc:
+        return _volver_a_fuentes(error=str(exc))
+
+    db.commit()
+    if not nueva:
+        return _volver_a_fuentes(error="Esa búsqueda ya estaba cargada.")
+    return _volver_a_fuentes(
+        mensaje=f"Búsqueda «{nombre}» agregada. Corre en la próxima ingesta diaria."
     )
 
 

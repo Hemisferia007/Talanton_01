@@ -161,6 +161,9 @@ class Vacante(Base):
 
     # El corazón del sistema: cuándo la vimos por primera vez y por última.
     fecha_publicacion: Mapped[date | None] = mapped_column(Date)
+    # La fuente dio la antigüedad en texto relativo: los días abiertos salen
+    # con varios días de error y hay que decirlo en vez de fingir precisión.
+    fecha_aproximada: Mapped[bool] = mapped_column(Boolean, default=False)
     primera_vez_vista: Mapped[date] = mapped_column(Date, default=lambda: ahora().date())
     ultima_vez_vista: Mapped[date] = mapped_column(Date, default=lambda: ahora().date())
     cerrada: Mapped[bool] = mapped_column(Boolean, default=False, index=True)

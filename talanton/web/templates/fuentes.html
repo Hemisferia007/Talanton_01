@@ -141,6 +141,41 @@
       </form>
     </section>
 
+    <section class="panel" aria-labelledby="t-linkedin">
+      <h2 id="t-linkedin">Búsqueda en LinkedIn</h2>
+      <p class="subtitulo">
+        A diferencia del resto, no vigila una empresa: busca por rubro y zona, y
+        <strong>descubre empresas nuevas</strong> que están contratando.
+      </p>
+
+      {% if not apify_listo %}
+        <p class="vacio">
+          Falta configurar <code>TALANTON_APIFY_TOKEN</code>. El paso a paso está
+          en <code>docs/linkedin.md</code>.
+        </p>
+      {% else %}
+      <form method="post" action="/fuentes/busquedas">
+        <div class="campo">
+          <label for="b-nombre">Nombre de la búsqueda</label>
+          <input type="text" id="b-nombre" name="nombre" required
+                 placeholder="Jefaturas industriales en Litoral">
+        </div>
+        <div class="campo">
+          <label for="b-config">Configuración del actor (JSON)</label>
+          <textarea id="b-config" name="configuracion" rows="8" required
+                    aria-describedby="ayuda-config"
+                    placeholder='{&#10;  "_actor": "usuario/linkedin-jobs-scraper",&#10;  "_pais": "AR",&#10;  "title": "jefe de mantenimiento",&#10;  "location": "Argentina",&#10;  "rows": 100&#10;}'></textarea>
+          <p class="ayuda" id="ayuda-config">
+            <code>_actor</code> es el actor de Apify a usar; el resto son sus
+            parámetros, tal cual los documenta su página en la tienda. Poné
+            siempre un tope de resultados: Apify cobra por uso.
+          </p>
+        </div>
+        <button class="btn" type="submit">Agregar búsqueda</button>
+      </form>
+      {% endif %}
+    </section>
+
     <section class="panel" aria-labelledby="t-como">
       <h2 id="t-como">Cómo funciona</h2>
       <ol class="mini" style="padding-left:var(--s4); line-height:1.7">

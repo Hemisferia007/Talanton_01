@@ -41,6 +41,15 @@ GMAIL_SCOPES = "https://www.googleapis.com/auth/gmail.send openid email"
 # genera una en data/ con permisos 600 — ver correo/cripto.py.
 SECRET_KEY = os.getenv("TALANTON_SECRET_KEY", "")
 
+# --- Apify ---------------------------------------------------------------
+# Para portales sin API pública, sobre todo LinkedIn Jobs. Ver docs/linkedin.md.
+APIFY_TOKEN = os.getenv("TALANTON_APIFY_TOKEN", "")
+
+
+def apify_configurado() -> bool:
+    return bool(APIFY_TOKEN)
+
+
 # --- Sesiones ----------------------------------------------------------------
 # Firma la cookie de sesión. Si cambia, se cierran todas las sesiones abiertas.
 SESSION_SECRET = os.getenv("TALANTON_SESSION_SECRET", "")

@@ -36,6 +36,9 @@ class VacanteCruda:
     modalidad: str | None = None
     descripcion: str | None = None
     fecha_publicacion: date | None = None
+    # True cuando la fecha se dedujo de un texto tipo «hace 3 semanas»: tiene
+    # varios días de error y no se puede citar como exacta.
+    fecha_aproximada: bool = False
     # Datos firmográficos que la fuente pueda traer gratis.
     empresa_dominio: str | None = None
     empresa_industria: str | None = None

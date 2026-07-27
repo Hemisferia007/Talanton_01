@@ -27,7 +27,7 @@ ARCHIVO_SEMILLA = BASE_DIR / "fuentes.json"
 # Tipos que sabemos ingerir hoy. El descubridor puede encontrar más (Ashby,
 # Recruitee, Workable): se guardan igual y quedan inactivos hasta que exista el
 # conector, para no perder el hallazgo.
-TIPOS_CON_CONECTOR = {"greenhouse", "lever", "pagina_carrera"}
+TIPOS_CON_CONECTOR = {"greenhouse", "lever", "pagina_carrera", "busqueda_linkedin"}
 
 
 # --- Objetivos ---------------------------------------------------------------
@@ -168,6 +168,26 @@ def _guardar_fuente(
     return True
 
 
+def agregar_busqueda_linkedin(
+    session: Session, *, nombre: str, configuracion: str
+) -> bool:
+    """Guarda una búsqueda de LinkedIn como fuente.
+
+    A diferencia del resto, no está atada a una empresa: es una consulta por
+    rubro y ubicación que **descubre** empresas que todavía no están en la base.
+    """
+    from .apify import desde_configuracion  # valida el JSON antes de guardar
+
+    desde_configuracion(configuracion, nombre)
+    return _guardar_fuente(
+        session,
+        tipo="busqueda_linkedin",
+        identificador=configuracion.strip(),
+        empresa=nombre.strip(),
+        dominio=None,
+    )
+
+
 def agregar_fuente_manual(
     session: Session, *, tipo: str, identificador: str, empresa: str, dominio: str | None = None
 ) -> bool:
@@ -200,6 +220,16 @@ def conectores_desde_base(session: Session) -> list[tuple[Fuente, Conector]]:
             conector = Lever(fuente.identificador, fuente.empresa, fuente.dominio)
         elif fuente.tipo == "pagina_carrera":
             conector = PaginaDeCarrera(fuente.identificador, fuente.empresa, fuente.stealth)
+        elif fuente.tipo == "busqueda_linkedin":
+            from .apify import ErrorApify, desde_configuracion
+
+            try:
+                conector = desde_configuracion(fuente.identificador, fuente.empresa)
+            except ErrorApify as exc:
+                # Una búsqueda mal configurada no debe tumbar la corrida entera.
+                log.warning("Búsqueda %s inválida: %s", fuente.empresa, exc)
+                fuente.ultimo_error = str(exc)
+                continue
         else:
             continue
         pares.append((fuente, conector))

@@ -94,6 +94,10 @@ en tu nombre, no leer tu casilla). Alta paso a paso en [`docs/gmail.md`](docs/gm
    sirve para cientos de páginas de carrera.
 3. **Portales HTML** — vía Scrapling, con selectores adaptativos y sesiones stealth
    sólo donde hace falta.
+4. **LinkedIn Jobs vía Apify** (`talanton/ingest/apify.py`) — la única fuente que además
+   **descubre empresas nuevas**: el resto vigila las que ya cargaste, una búsqueda por
+   rubro y zona trae las que todavía no conocías. Tiene contrapartidas de ToS que
+   conviene leer antes: [`docs/linkedin.md`](docs/linkedin.md).
 
 Las fuentes **se administran desde la pantalla Fuentes**, sin tocar archivos ni
 consola: cargás el nombre de una empresa y Talanton sondea Greenhouse, Lever, Ashby,
@@ -109,9 +113,10 @@ resuelva, y marca al decisor. En el lead, cuando todavía no hay decisor, la fic
 **qué cargo buscar** según el tamaño de la empresa — en una PyME decide el dueño, en
 una de 500 el líder de selección.
 
-No se compran bases ni se scrapea LinkedIn: los emails salen de lo que la empresa
-publicó para que la contacten por trabajo, con `fuente_url` guardada para poder
-auditarlos y borrarlos a pedido.
+No se compran bases ni se tocan perfiles de personas: los emails salen de lo que la
+empresa publicó para que la contacten por trabajo, con `fuente_url` guardada para poder
+auditarlos y borrarlos a pedido. De LinkedIn se leen **avisos, nunca perfiles** — la
+distinción y sus motivos están en [`docs/linkedin.md`](docs/linkedin.md).
 
 **Visibilidad de la ingesta**: cada corrida queda registrada, y el panel avisa si la
 última no trajo nada o si fallaron fuentes. Sin eso, una configuración rota se ve
@@ -165,8 +170,8 @@ talanton/
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            200 tests: dominio, web, accesibilidad, correo, auth, ingesta y enriquecimiento
-docs/             Estrategia, alta de Gmail y despliegue
+tests/            227 tests: dominio, web, accesibilidad, correo, auth, ingesta y enriquecimiento
+docs/             Estrategia, alta de Gmail, LinkedIn/Apify y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```
 

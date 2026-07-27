@@ -3,15 +3,19 @@
 {%- endmacro %}
 
 {# El color acompaña al texto, nunca lo reemplaza: los días siempre se leen. #}
+{# El «~» avisa que la fuente dio la antigüedad en texto relativo y el número
+   tiene varios días de error. Importa porque va en un mail al cliente. #}
 {% macro dias_chip(vacante) -%}
+{% set aprox = '~' if vacante.fecha_aproximada else '' %}
+{% set titulo = 'Fecha aproximada: la fuente informó la antigüedad en texto relativo' if vacante.fecha_aproximada else '' %}
 {% if vacante.cerrada %}
   <span class="chip cerrada">Cerrada</span>
 {% elif vacante.dias_abierta >= 75 %}
-  <span class="chip urgente">{{ vacante.dias_abierta }} días</span>
+  <span class="chip urgente" title="{{ titulo }}">{{ aprox }}{{ vacante.dias_abierta }} días</span>
 {% elif vacante.dias_abierta >= 45 %}
-  <span class="chip tibio">{{ vacante.dias_abierta }} días</span>
+  <span class="chip tibio" title="{{ titulo }}">{{ aprox }}{{ vacante.dias_abierta }} días</span>
 {% else %}
-  <span class="chip">{{ vacante.dias_abierta }} días</span>
+  <span class="chip" title="{{ titulo }}">{{ aprox }}{{ vacante.dias_abierta }} días</span>
 {% endif %}
 {%- endmacro %}
 

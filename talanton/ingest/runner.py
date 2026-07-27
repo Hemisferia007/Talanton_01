@@ -100,6 +100,7 @@ def persistir(session: Session, crudas: list[VacanteCruda], fuente: str) -> Resu
             modalidad=cruda.modalidad,
             descripcion=cruda.descripcion,
             fecha_publicacion=cruda.fecha_publicacion,
+            fecha_aproximada=cruda.fecha_aproximada,
             vista_el=hoy,
         )
         lead = asegurar_lead(session, empresa)

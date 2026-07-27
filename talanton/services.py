@@ -94,6 +94,7 @@ def upsert_vacante(
     modalidad: str | None = None,
     descripcion: str | None = None,
     fecha_publicacion: date | None = None,
+    fecha_aproximada: bool = False,
     vista_el: date | None = None,
 ) -> tuple[Vacante, bool]:
     """Registra una observación de la vacante. Devuelve (vacante, es_nueva).
@@ -136,6 +137,7 @@ def upsert_vacante(
     vacante.descripcion = descripcion or vacante.descripcion
     if fecha_publicacion and not vacante.fecha_publicacion:
         vacante.fecha_publicacion = fecha_publicacion
+        vacante.fecha_aproximada = fecha_aproximada
     vacante.publicada_por_consultora = normalize.publicado_por_consultora(
         empresa.nombre, descripcion
     )
