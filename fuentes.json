@@ -1,0 +1,23 @@
+{
+  "_comentario": "Fuentes de la corrida diaria. Priorizar ATS y JSON-LD sobre HTML: son más baratas, más estables y traen fecha de publicación real.",
+  "fuentes": [
+    {
+      "tipo": "greenhouse",
+      "board": "mercadolibre",
+      "empresa": "Mercado Libre",
+      "dominio": "mercadolibre.com"
+    },
+    {
+      "tipo": "lever",
+      "board": "ualaar",
+      "empresa": "Ualá",
+      "dominio": "uala.com.ar"
+    },
+    {
+      "tipo": "pagina_carrera",
+      "url": "https://ejemplo.com.ar/trabaja-con-nosotros",
+      "empresa": null,
+      "stealth": false
+    }
+  ]
+}

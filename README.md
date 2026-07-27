@@ -1,22 +1,98 @@
 # Talanton
 
-Motor de generación de leads para consultora de RRHH especializada en selección.
+Motor de generación de leads y mini-CRM para una consultora de RRHH especializada en
+selección. Mercado: **Argentina y LatAm**.
 
 Detecta empresas con **búsquedas abiertas que no logran cerrar** —el momento exacto en
-que necesitan una consultora— a partir de señales públicas de contratación, y las
-prioriza con un score explicable.
+que necesitan una consultora— y las prioriza con un score explicable.
 
-## Estado
+## La idea en una línea
 
-Fase de diseño. La estrategia, arquitectura y roadmap están en
-[`docs/estrategia-leads.md`](docs/estrategia-leads.md).
-
-## Idea en una línea
-
-El activo no es el scraper, es la **serie histórica**: saber que un aviso lleva 52 días
+El activo no es el scraper, es la **serie histórica**: saber que un aviso lleva 92 días
 publicado y ya se republicó dos veces sólo es posible si venís mirando desde antes.
+Por eso el sistema empieza a correr antes de estar terminado.
 
-## Stack previsto
+Estrategia completa, señales y roadmap: [`docs/estrategia-leads.md`](docs/estrategia-leads.md).
 
-Python 3.11+ · [Scrapling](https://github.com/D4Vinci/Scrapling) (ingesta y parseo
-adaptativo) · Pydantic · Postgres · FastAPI
+## Arranque rápido
+
+```bash
+pip install -r requirements.txt
+python -m talanton.cli seed      # datos de demo (empresas ficticias AR/LatAm)
+python -m talanton.cli servir    # http://127.0.0.1:8000
+```
+
+Para la ingesta real hace falta además el navegador de Scrapling:
+
+```bash
+scrapling install
+python -m talanton.cli ingestar  # lee fuentes.json
+```
+
+## Qué hay hoy
+
+**Mini-CRM web** (FastAPI + Jinja2, sin build step):
+
+| Pantalla | Qué muestra |
+|---|---|
+| **Panel** | Métricas, leads nuevos por encima del umbral y búsquedas que se les están estirando |
+| **Tablero** | Kanban con drag & drop: Nuevo → Contactado → En conversación → Reunión → Propuesta → Ganado/Perdido |
+| **Leads** | Listado filtrable por estado, país, score y texto, con la señal principal de cada uno |
+| **Avisos** | Todas las vacantes detectadas, ordenadas por días abiertas |
+| **Mi empresa** | Datos de la consultora y el ICP, que alimenta el eje de *fit* del score |
+
+**Motor de scoring** con cuatro ejes ponderados —urgencia 40%, fit ICP 25%,
+accesibilidad 20%, capacidad de pago 15%— donde cada punto sumado deja una frase que lo
+justifica, más un **gancho** listo para abrir la conversación:
+
+> Vi que hace 92 días están buscando Jefe de Depósito en Mendoza. Ya la republicaron, así
+> que imagino que no está siendo fácil.
+
+**Ingesta** en tres carriles, del más barato al más caro:
+
+1. **APIs de ATS** (`talanton/ingest/ats.py`) — Greenhouse, Lever. JSON público, estable,
+   con fecha de publicación real y sin anti-bot.
+2. **JSON-LD `schema.org/JobPosting`** (`talanton/ingest/jsonld.py`) — un solo parser
+   sirve para cientos de páginas de carrera.
+3. **Portales HTML** — vía Scrapling, con selectores adaptativos y sesiones stealth
+   sólo donde hace falta.
+
+Las fuentes se declaran en [`fuentes.json`](fuentes.json).
+
+## Cómo se sostiene el histórico
+
+- Las vacantes **nunca se borran**: cuando desaparecen de la fuente se marcan cerradas
+  con fecha. Modelar el cierre importa tanto como la apertura, si no el sistema termina
+  llamando a empresas que ya contrataron.
+- `primera_vez_vista` no se pisa nunca. Es lo que permite calcular días abiertos.
+- Si una vacante cerrada reaparece, cuenta como **reposteo**: reintentaron y volvieron a
+  fallar.
+- Los roles se normalizan (`Programador Full-Stack Ssr` ≡ `Full Stack Developer Senior`),
+  sin lo cual las señales de reposteo y recurrencia directamente no existen.
+
+## Estructura
+
+```
+talanton/
+  models.py       Empresa, Vacante, Lead, Contacto, Actividad, PerfilConsultora
+  normalize.py    Dedupe de empresas, normalización de roles, detección de seniority
+  scoring.py      Los cuatro ejes y sus razones
+  services.py     Upserts, cierre de vacantes, kanban, consultas
+  ingest/         Conectores y corrida diaria
+  web/            FastAPI + templates + kanban
+  seed.py         Datos de demo
+  cli.py          init | seed | ingestar | recalcular | servir
+tests/            44 tests
+docs/             Estrategia
+```
+
+## Tests
+
+```bash
+python -m pytest -q
+```
+
+## Pendiente (ver roadmap)
+
+Enriquecimiento de decisores, verificación de mails, alertas diarias y el loop de
+feedback comercial que recalibra los pesos del scoring con resultados reales.

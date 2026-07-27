@@ -1,0 +1,19 @@
+{% macro score(valor) -%}
+<span class="score {{ 'alto' if valor >= 70 else ('medio' if valor >= 50 else '') }}">{{ valor|round|int }}</span>
+{%- endmacro %}
+
+{% macro dias_chip(vacante) -%}
+{% if vacante.cerrada %}
+  <span class="chip cerrada">cerrada</span>
+{% elif vacante.dias_abierta >= 75 %}
+  <span class="chip urgente">{{ vacante.dias_abierta }} días</span>
+{% elif vacante.dias_abierta >= 45 %}
+  <span class="chip tibio">{{ vacante.dias_abierta }} días</span>
+{% else %}
+  <span class="chip">{{ vacante.dias_abierta }} días</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro empresa_linea(empresa) -%}
+{{ empresa.nombre }}{% if empresa.pais %} <span class="tenue pequeno">· {{ empresa.pais }}</span>{% endif %}
+{%- endmacro %}

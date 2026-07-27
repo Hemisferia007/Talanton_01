@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Talanton{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="marca" href="/">
+    <span class="logo">T</span>
+    <span>Talanton</span>
+  </a>
+  <nav>
+    <a href="/" class="{{ 'activo' if request.url.path == '/' }}">Panel</a>
+    <a href="/tablero" class="{{ 'activo' if request.url.path == '/tablero' }}">Tablero</a>
+    <a href="/leads" class="{{ 'activo' if request.url.path.startswith('/leads') }}">Leads</a>
+    <a href="/avisos" class="{{ 'activo' if request.url.path == '/avisos' }}">Avisos</a>
+    <a href="/mi-empresa" class="{{ 'activo' if request.url.path == '/mi-empresa' }}">Mi empresa</a>
+  </nav>
+  <form method="post" action="/recalcular" class="accion-topbar">
+    <button class="btn btn-fantasma" type="submit" title="Recalcular todos los scores">Recalcular</button>
+  </form>
+</header>
+
+<main class="{% block clase_main %}contenedor{% endblock %}">
+  {% block contenido %}{% endblock %}
+</main>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

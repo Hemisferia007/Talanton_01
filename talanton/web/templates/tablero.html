@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_macros.html" import score, dias_chip %}
+{% block titulo %}Tablero · Talanton{% endblock %}
+{% block clase_main %}contenedor-ancho{% endblock %}
+
+{% block contenido %}
+<div class="encabezado" style="margin-bottom:18px">
+  <div>
+    <h1>Tablero comercial</h1>
+    <p class="subtitulo">Arrastrá las tarjetas para mover el lead de estado.</p>
+  </div>
+  <span id="aviso-guardado" class="chip ok" style="visibility:hidden">Guardado</span>
+</div>
+
+<div class="tablero">
+  {% for estado in estados %}
+  <div class="columna" data-estado="{{ estado.value }}">
+    <div class="columna-encabezado">
+      <h3>{{ estado.etiqueta }}</h3>
+      <span class="cuenta">{{ columnas[estado]|length }}</span>
+    </div>
+    {% for lead in columnas[estado] %}
+      {% set abiertas = lead.empresa.vacantes_abiertas %}
+      <article class="tarjeta" draggable="true" data-lead="{{ lead.id }}">
+        <div class="nombre"><a href="/leads/{{ lead.id }}">{{ lead.empresa.nombre }}</a></div>
+        {% if lead.gancho %}<div class="gancho">{{ lead.gancho }}</div>{% endif %}
+        <div class="meta">
+          {{ score(lead.score) }}
+          {% if abiertas %}
+            <span class="chip">{{ abiertas|length }} búsqueda{{ 's' if abiertas|length != 1 }}</span>
+            {% set mas_vieja = abiertas|sort(attribute='dias_abierta')|last %}
+            {{ dias_chip(mas_vieja) }}
+          {% endif %}
+        </div>
+      </article>
+    {% else %}
+      <p class="vacio">Vacío</p>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/kanban.js"></script>
+{% endblock %}

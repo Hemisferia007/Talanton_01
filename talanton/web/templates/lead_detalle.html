@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% from "_macros.html" import score, dias_chip %}
+{% block titulo %}{{ lead.empresa.nombre }} · Talanton{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>{{ lead.empresa.nombre }} {{ score(lead.score) }}</h1>
+    <p class="subtitulo">
+      {{ lead.empresa.industria or 'Sin industria' }} ·
+      {{ lead.empresa.tamano_etiqueta }} ·
+      {{ pais_nombre.get(lead.empresa.pais, lead.empresa.pais or 'País desconocido') }}
+      {% if lead.empresa.dominio %} · <a href="https://{{ lead.empresa.dominio }}" target="_blank" rel="noopener">{{ lead.empresa.dominio }}</a>{% endif %}
+    </p>
+  </div>
+  <a class="btn btn-fantasma" href="/leads">← Volver</a>
+</div>
+
+{% if lead.gancho %}
+<div class="gancho-caja">
+  <strong>Gancho para abrir la conversación</strong>
+  {{ lead.gancho }}
+</div>
+{% endif %}
+
+<div class="detalle">
+  <div style="display:grid; gap:18px">
+
+    <section class="panel">
+      <h2>Búsquedas detectadas</h2>
+      {% if vacantes %}
+      <div class="tabla-envoltorio">
+      <table>
+        <thead><tr><th>Puesto</th><th>Seniority</th><th>Ubicación</th><th>Abierta</th><th>Fuente</th></tr></thead>
+        <tbody>
+        {% for v in vacantes %}
+          <tr>
+            <td>
+              <div style="font-weight:600">{{ v.titulo }}</div>
+              {% if v.reposteos %}<div class="tenue pequeno">republicada {{ v.reposteos }}×</div>{% endif %}
+              {% if v.publicada_por_consultora %}<div class="tenue pequeno">publicada por una consultora</div>{% endif %}
+            </td>
+            <td class="pequeno">{{ v.seniority.etiqueta }}</td>
+            <td class="pequeno">{{ v.ubicacion or '—' }}</td>
+            <td>{{ dias_chip(v) }}</td>
+            <td class="pequeno">
+              {% if v.fuente_url %}<a href="{{ v.fuente_url }}" target="_blank" rel="noopener">{{ v.fuente }}</a>
+              {% else %}{{ v.fuente }}{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+        <p class="vacio">Sin búsquedas registradas.</p>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>Por qué este score</h2>
+      <div class="ejes" style="margin-bottom:16px">
+        {% for nombre, valor in [('Urgencia (40%)', lead.score_urgencia), ('Fit ICP (25%)', lead.score_fit), ('Accesibilidad (20%)', lead.score_accesibilidad), ('Capacidad de pago (15%)', lead.score_pago)] %}
+        <div class="eje">
+          <span class="tenue">{{ nombre }}</span>
+          <span class="barra"><span style="width: {{ valor }}%"></span></span>
+          <span class="mono">{{ valor|round|int }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <ul class="razones">
+        {% for razon in lead.lista_razones %}<li>{{ razon }}</li>{% endfor %}
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>Actividad</h2>
+      <form method="post" action="/leads/{{ lead.id }}/nota" style="margin-bottom:16px">
+        <textarea name="detalle" placeholder="Qué pasó con este lead…"></textarea>
+        <div style="display:flex; gap:8px; margin-top:8px; align-items:center">
+          <select name="tipo">
+            <option value="nota">Nota</option>
+            <option value="contacto">Contacto realizado</option>
+          </select>
+          <button class="btn" type="submit">Registrar</button>
+        </div>
+      </form>
+      <ul class="timeline">
+        {% for a in lead.actividades %}
+          <li>
+            <div>{{ a.detalle }}</div>
+            <div class="cuando">{{ a.creada_en.strftime('%d/%m/%Y %H:%M') }} · {{ a.tipo }}{% if a.autor %} · {{ a.autor }}{% endif %}</div>
+          </li>
+        {% else %}
+          <li class="tenue">Sin actividad todavía.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  <div style="display:grid; gap:18px">
+    <section class="panel">
+      <h2>Estado comercial</h2>
+      <form method="post" action="/leads/{{ lead.id }}/estado">
+        <div class="campo">
+          <label for="estado">Estado</label>
+          <select name="estado" id="estado" style="width:100%">
+            {% for e in estados %}
+              <option value="{{ e.value }}" {{ 'selected' if lead.estado == e }}>{{ e.etiqueta }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="campo">
+          <label for="responsable">Responsable</label>
+          <input type="text" id="responsable" name="responsable" style="width:100%" value="{{ lead.responsable or '' }}">
+        </div>
+        <div class="campo">
+          <label for="proximo_paso">Próximo paso</label>
+          <input type="text" id="proximo_paso" name="proximo_paso" style="width:100%" value="{{ lead.proximo_paso or '' }}" placeholder="Ej: llamar al gerente de RRHH">
+        </div>
+        <div class="campo">
+          <label for="motivo_perdida">Motivo de pérdida</label>
+          <input type="text" id="motivo_perdida" name="motivo_perdida" style="width:100%" value="{{ lead.motivo_perdida or '' }}" placeholder="Sólo si se marca como perdido">
+        </div>
+        <button class="btn" type="submit">Guardar</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Contactos</h2>
+      {% if lead.empresa.contactos %}
+        <ul class="timeline">
+        {% for c in lead.empresa.contactos %}
+          <li>
+            <div style="font-weight:600">{{ c.nombre }} {% if c.es_decisor %}<span class="chip ok">decisor</span>{% endif %}</div>
+            <div class="cuando">{{ c.cargo or 'Sin cargo' }}{% if c.email %} · {{ c.email }}{% endif %}</div>
+          </li>
+        {% endfor %}
+        </ul>
+      {% else %}
+        <p class="vacio">Sin contactos cargados. Identificar al decisor sube el eje de accesibilidad.</p>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

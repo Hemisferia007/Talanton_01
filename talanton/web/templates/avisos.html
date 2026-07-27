@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "_macros.html" import dias_chip %}
+{% block titulo %}Avisos · Talanton{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Avisos</h1>
+    <p class="subtitulo">{{ vacantes|length }} búsqueda{{ 's' if vacantes|length != 1 }}, ordenadas por días abiertas.</p>
+  </div>
+</div>
+
+<form class="filtros" method="get" action="/avisos">
+  <input type="text" name="q" placeholder="Puesto o empresa" value="{{ filtros.q }}">
+  <select name="estado_aviso">
+    <option value="abiertas" {{ 'selected' if filtros.estado_aviso == 'abiertas' }}>Abiertas</option>
+    <option value="urgentes" {{ 'selected' if filtros.estado_aviso == 'urgentes' }}>Sólo +45 días</option>
+    <option value="todas" {{ 'selected' if filtros.estado_aviso == 'todas' }}>Todas (incluye cerradas)</option>
+  </select>
+  <select name="pais">
+    <option value="">Todos los países</option>
+    {% for p in paises %}
+      <option value="{{ p }}" {{ 'selected' if filtros.pais == p }}>{{ pais_nombre[p] }}</option>
+    {% endfor %}
+  </select>
+  <select name="seniority">
+    <option value="">Todos los seniorities</option>
+    {% for s in seniorities %}
+      <option value="{{ s.value }}" {{ 'selected' if filtros.seniority == s.value }}>{{ s.etiqueta }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn" type="submit">Filtrar</button>
+  <a class="btn btn-fantasma" href="/avisos">Limpiar</a>
+</form>
+
+<div class="panel">
+{% if vacantes %}
+  <div class="tabla-envoltorio">
+  <table>
+    <thead>
+      <tr>
+        <th>Abierta</th><th>Puesto</th><th>Empresa</th>
+        <th>Seniority</th><th>Ubicación</th><th>Fuente</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for v in vacantes %}
+      <tr>
+        <td>{{ dias_chip(v) }}</td>
+        <td>
+          <div style="font-weight:600">{{ v.titulo }}</div>
+          <div class="tenue pequeno">
+            {{ v.rol_normalizado }}{% if v.reposteos %} · republicada {{ v.reposteos }}×{% endif %}
+          </div>
+        </td>
+        <td class="pequeno">
+          {% if v.empresa.lead %}<a href="/leads/{{ v.empresa.lead.id }}">{{ v.empresa.nombre }}</a>
+          {% else %}{{ v.empresa.nombre }}{% endif %}
+          {% if v.publicada_por_consultora %}<span class="chip" title="El aviso lo publica una consultora">consultora</span>{% endif %}
+        </td>
+        <td class="pequeno">{{ v.seniority.etiqueta }}</td>
+        <td class="pequeno">{{ v.ubicacion or '—' }}</td>
+        <td class="pequeno">
+          {% if v.fuente_url %}<a href="{{ v.fuente_url }}" target="_blank" rel="noopener">{{ v.fuente }}</a>
+          {% else %}{{ v.fuente }}{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+{% else %}
+  <p class="vacio">No hay avisos que coincidan con el filtro.</p>
+{% endif %}
+</div>
+{% endblock %}
