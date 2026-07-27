@@ -26,6 +26,7 @@ from ..config import (
     SESSION_MAX_AGE,
     gmail_configurado,
     secreto_de_sesion,
+    verificar_configuracion_de_produccion,
 )
 from ..correo import servicio as correo
 from ..correo import gmail as api_gmail
@@ -52,6 +53,9 @@ templates = Jinja2Templates(directory=str(BASE / "templates"))
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    # Antes de aceptar tráfico: si falta un secreto de producción, que el
+    # deploy falle acá y no en silencio semanas después.
+    verificar_configuracion_de_produccion()
     init_db()
     yield
 

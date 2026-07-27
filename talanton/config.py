@@ -53,8 +53,43 @@ COOKIES_SEGURAS = os.getenv("TALANTON_COOKIES_SEGURAS", "").lower() in ("1", "tr
 # 2000 (Workspace); quedarse bien por debajo protege la reputación del dominio.
 LIMITE_ENVIOS_DIARIOS = int(os.getenv("TALANTON_LIMITE_ENVIOS_DIARIOS", "40"))
 
+# --- Primer usuario ----------------------------------------------------------
+# En un PaaS no siempre hay consola para correr `cli usuario`. Si estas dos
+# variables están y la tabla de usuarios está vacía, se crea el primer usuario
+# al arrancar. Conviene borrarlas apenas se pudo entrar.
+ADMIN_EMAIL = os.getenv("TALANTON_ADMIN_EMAIL", "")
+ADMIN_PASSWORD = os.getenv("TALANTON_ADMIN_PASSWORD", "")
+ADMIN_NOMBRE = os.getenv("TALANTON_ADMIN_NOMBRE", "")
+
+
 def gmail_configurado() -> bool:
     return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+
+
+def verificar_configuracion_de_produccion() -> None:
+    """Falla el arranque si falta algo que después rompe de forma silenciosa.
+
+    `COOKIES_SEGURAS` se toma como señal de "esto está en producción". Sin un
+    secreto de sesión fijo, cada reinicio genera uno nuevo y desloguea a todo
+    el mundo sin ningún error visible; sin clave de cifrado estable, los
+    tokens de Gmail guardados dejan de poder descifrarse.
+    """
+    if not COOKIES_SEGURAS:
+        return
+
+    faltantes = []
+    if not SESSION_SECRET:
+        faltantes.append("TALANTON_SESSION_SECRET")
+    if not SECRET_KEY:
+        faltantes.append("TALANTON_SECRET_KEY")
+
+    if faltantes:
+        raise RuntimeError(
+            "Faltan variables obligatorias en producción: "
+            + ", ".join(faltantes)
+            + ". Generalas con los comandos de .env.ejemplo y cargalas en el "
+            "entorno del servicio. Ver docs/despliegue.md."
+        )
 
 
 def secreto_de_sesion() -> str:

@@ -22,8 +22,8 @@ USER talanton
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/salud', timeout=3).status==200 else 1)"
+    CMD python -c "import os,urllib.request,sys; p=os.getenv('PORT','8000'); sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{p}/salud', timeout=3).status==200 else 1)"
 
-# Las migraciones corren antes de levantar: el contenedor puede arrancar contra
-# una base vieja y tiene que dejarla al día solo.
-CMD ["sh", "-c", "alembic upgrade head && uvicorn talanton.web.app:app --host 0.0.0.0 --port 8000"]
+# Migraciones y después el servidor. El puerto sale de $PORT cuando el hosting
+# lo fija (Railway y casi todo PaaS), con 8000 como default.
+CMD ["/bin/sh", "/app/scripts/arranque.sh"]

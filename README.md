@@ -109,14 +109,16 @@ Las fuentes se declaran en [`fuentes.json`](fuentes.json).
 
 ## Poner esto en línea
 
+**Railway** (recomendado): tres servicios —Postgres, web y la ingesta diaria por cron—
+desde este mismo repo. El paso a paso está en [`docs/despliegue.md`](docs/despliegue.md).
+
+**Con Docker**, en un VPS o local:
+
 ```bash
 cp .env.ejemplo .env    # y completar los tres secretos
 docker compose up -d
 docker compose exec web python -m talanton.cli usuario
 ```
-
-Levanta web, Postgres y la corrida diaria de ingesta. El paso a paso, las alternativas
-gestionadas y los backups están en [`docs/despliegue.md`](docs/despliegue.md).
 
 **GitHub Pages no sirve para esto**: publica archivos estáticos, y Talanton es un
 servidor con base de datos, sesiones y callback de OAuth. Además el repo de Pages es

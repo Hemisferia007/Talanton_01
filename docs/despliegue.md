@@ -13,7 +13,112 @@ contacto de terceros y la credencial que manda mail en nombre de la consultora.
 Lo que sí se puede publicar en Pages es una **landing** que cuente qué hace Talanton,
 con un link al CRM. Son dos cosas distintas y conviene que lo sigan siendo.
 
-## La opción recomendada: un VPS con Docker
+## Railway, paso a paso
+
+Railway detecta el `Dockerfile` y usa `railway.json` para el health check. Son tres
+servicios en el mismo proyecto.
+
+### 1. Postgres primero
+
+**New → Database → Add PostgreSQL**. Railway lo provisiona con volumen persistente y
+expone `DATABASE_URL`. Creá la base **antes** que la app: así ya podés referenciarla
+cuando cargues las variables.
+
+### 2. El servicio web
+
+**New → GitHub Repo** → elegí este repositorio y la rama.
+
+En **Variables** del servicio:
+
+```
+TALANTON_DATABASE_URL=${{Postgres.DATABASE_URL}}
+TALANTON_SESSION_SECRET=<generado>
+TALANTON_SECRET_KEY=<generado>
+TALANTON_COOKIES_SEGURAS=1
+TALANTON_ADMIN_EMAIL=vos@talanton.com.ar
+TALANTON_ADMIN_PASSWORD=<una contraseña larga>
+```
+
+La sintaxis `${{Postgres.DATABASE_URL}}` es de Railway: referencia la variable del
+servicio de Postgres, así no hay que copiar credenciales a mano. Railway la entrega
+como `postgresql://…` y la app la normaliza sola.
+
+Generá los dos secretos:
+
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"                                # SESSION_SECRET
+python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"   # SECRET_KEY
+```
+
+**Los dos tienen que quedar fijos.** Si el de sesión cambia, se cierran todas las
+sesiones; si cambia el de cifrado, los tokens de Gmail guardados dejan de poder
+descifrarse y hay que reconectar las casillas. Por eso la app **se niega a arrancar**
+si `TALANTON_COOKIES_SEGURAS=1` y alguno falta: es un error visible en el deploy en
+vez de un problema silencioso semanas después.
+
+En **Settings → Networking → Generate Domain** obtenés la URL pública, con HTTPS
+incluido.
+
+### 3. El primer usuario
+
+`TALANTON_ADMIN_EMAIL` y `TALANTON_ADMIN_PASSWORD` crean el primer usuario al arrancar,
+**sólo si la tabla de usuarios está vacía**. Es el camino práctico en un PaaS donde no
+hay consola a mano.
+
+Apenas puedas entrar, **borrá esas dos variables** de Railway. Ya no hacen nada —con
+usuarios existentes se ignoran— pero no tiene sentido dejar una contraseña dando vueltas
+en el panel. De ahí en más los usuarios se crean desde la consola:
+
+```bash
+railway run --service web python -m talanton.cli usuario
+```
+
+### 4. La ingesta diaria
+
+**New → GitHub Repo**, el mismo repositorio, y en ese segundo servicio:
+
+- **Settings → Deploy → Custom Start Command**: `python -m talanton.cli ingestar`
+- **Settings → Cron Schedule**: `0 9 * * *` (09:00 UTC ≈ 06:00 en Argentina)
+- **Variables**: `TALANTON_DATABASE_URL=${{Postgres.DATABASE_URL}}` y
+  `TALANTON_SECRET_KEY=<el mismo>`
+
+Un servicio con cron en Railway corre, termina y se apaga: por eso acá va el comando de
+ingesta directo y no el `scripts/ingesta-diaria.sh`, que es el bucle para VPS.
+
+**Este servicio no es opcional.** Cada día que no corre es histórico que no se recupera,
+y el histórico es lo único que ningún competidor puede improvisar.
+
+### 5. Gmail
+
+Con el dominio de Railway andando, cargá en Google Cloud la URI de redireccionamiento:
+
+```
+https://<tu-app>.up.railway.app/oauth/google/callback
+```
+
+y en Railway:
+
+```
+TALANTON_GOOGLE_CLIENT_ID=…
+TALANTON_GOOGLE_CLIENT_SECRET=…
+TALANTON_OAUTH_REDIRECT_URI=https://<tu-app>.up.railway.app/oauth/google/callback
+```
+
+Tiene que coincidir **exactamente** con lo cargado en Google, incluido el `https://` y
+sin barra final. Es el error más común del alta.
+
+### Costo y backups
+
+Con el plan Hobby (US$5/mes de crédito) entra cómodo: la web y el Postgres consumen poco
+y el servicio de cron sólo corre unos minutos por día.
+
+Railway hace backups del volumen, pero conviene tener una copia propia afuera:
+
+```bash
+railway run --service Postgres pg_dump "$DATABASE_URL" | gzip > backup-$(date +%F).sql.gz
+```
+
+## Alternativa: un VPS con Docker
 
 Para dos o tres personas, un servidor chico alcanza y sobra: **Hetzner CX22** (~€4/mes)
 o **DigitalOcean** (~US$6/mes). Con Docker Compose queda todo —web, Postgres y la
@@ -54,11 +159,10 @@ Con HTTPS andando, dejá `TALANTON_COOKIES_SEGURAS=1` para que la cookie de sesi
 viaje nunca en claro, y cargá `https://crm.talanton.com.ar/oauth/google/callback` como
 URI de redireccionamiento en Google Cloud.
 
-## Alternativas gestionadas
+## Otras alternativas gestionadas
 
 | Opción | Costo | La trampa |
 |---|---|---|
-| **Railway** | ~US$5/mes | Lo más rápido de arrancar. Postgres incluido y `TALANTON_DATABASE_URL` se inyecta sola. |
 | **Render** | Gratis o US$7/mes | El plan gratis **apaga el servicio por inactividad**: la ingesta diaria no corre y se pierde histórico. Sirve para mostrarlo, no para operarlo. |
 | **Fly.io** | ~US$5/mes | Bien si el equipo se reparte entre países. Postgres aparte. |
 | **Google Cloud Run** | Por uso | Tiene sentido si ya están en Google Cloud por el OAuth. **El disco es efímero**: obliga a Cloud SQL, que arranca en ~US$10/mes. |

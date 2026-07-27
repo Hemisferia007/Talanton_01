@@ -74,6 +74,10 @@ def init_db() -> None:
         _marcar_en_head()
 
     with SessionLocal() as s:
+        from .auth import crear_admin_inicial
+
+        crear_admin_inicial(s)
+
         if s.scalar(select(PerfilConsultora).limit(1)) is None:
             s.add(
                 PerfilConsultora(

@@ -179,3 +179,40 @@ def test_la_pagina_muestra_quien_esta_conectado(cliente):
     html = cliente.get("/").text
     assert "Usuaria de prueba" in html
     assert 'action="/logout"' in html
+
+
+# --- Primer usuario desde el entorno -----------------------------------------
+
+
+def test_el_admin_inicial_se_crea_si_no_hay_usuarios(session, monkeypatch):
+    """En un PaaS no siempre hay consola para correr `cli usuario`."""
+    monkeypatch.setattr("talanton.config.ADMIN_EMAIL", "jefa@talanton.com.ar")
+    monkeypatch.setattr("talanton.config.ADMIN_PASSWORD", "una-clave-bien-larga")
+    monkeypatch.setattr("talanton.config.ADMIN_NOMBRE", "Jefa")
+
+    creado = auth.crear_admin_inicial(session)
+    assert creado is not None
+    assert auth.autenticar(session, "jefa@talanton.com.ar", "una-clave-bien-larga")
+
+
+def test_el_admin_inicial_no_pisa_usuarios_existentes(session, usuario, monkeypatch):
+    """Si ya hay gente, cambiar las variables no puede crear ni pisar nada."""
+    monkeypatch.setattr("talanton.config.ADMIN_EMAIL", "intruso@ajeno.com")
+    monkeypatch.setattr("talanton.config.ADMIN_PASSWORD", "otra-clave-bien-larga")
+
+    assert auth.crear_admin_inicial(session) is None
+    assert auth.autenticar(session, "intruso@ajeno.com", "otra-clave-bien-larga") is None
+
+
+def test_sin_variables_no_se_crea_nada(session, monkeypatch):
+    monkeypatch.setattr("talanton.config.ADMIN_EMAIL", "")
+    monkeypatch.setattr("talanton.config.ADMIN_PASSWORD", "")
+    assert auth.crear_admin_inicial(session) is None
+    assert not auth.hay_usuarios(session)
+
+
+def test_una_clave_inicial_corta_no_rompe_el_arranque(session, monkeypatch):
+    """Mejor quedarse sin usuario que tumbar el servicio en el deploy."""
+    monkeypatch.setattr("talanton.config.ADMIN_EMAIL", "a@b.com")
+    monkeypatch.setattr("talanton.config.ADMIN_PASSWORD", "corta")
+    assert auth.crear_admin_inicial(session) is None

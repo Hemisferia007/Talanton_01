@@ -10,13 +10,15 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import secrets
-from datetime import datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .models import Usuario, ahora
+
+log = logging.getLogger("talanton.auth")
 
 # Parámetros de scrypt. N=2^15 tarda ~100ms por verificación en hardware
 # modesto: suficiente para frenar fuerza bruta sin que el login se note lento.
@@ -102,3 +104,32 @@ def autenticar(session: Session, email: str, password: str) -> Usuario | None:
 
 def hay_usuarios(session: Session) -> bool:
     return bool(session.scalar(select(func.count()).select_from(Usuario)))
+
+
+def crear_admin_inicial(session: Session) -> Usuario | None:
+    """Crea el primer usuario desde variables de entorno, si no hay ninguno.
+
+    Existe porque en un PaaS no siempre hay una consola a mano. Sólo actúa con
+    la tabla vacía: si ya hay usuarios, cambiar las variables no puede crear
+    uno nuevo ni pisar contraseñas.
+    """
+    from .config import ADMIN_EMAIL, ADMIN_NOMBRE, ADMIN_PASSWORD
+
+    if not (ADMIN_EMAIL and ADMIN_PASSWORD) or hay_usuarios(session):
+        return None
+
+    try:
+        usuario = crear_usuario(
+            session, ADMIN_EMAIL, ADMIN_NOMBRE or ADMIN_EMAIL, ADMIN_PASSWORD
+        )
+    except ValueError as exc:
+        log.error("No se pudo crear el usuario inicial: %s", exc)
+        return None
+
+    session.commit()
+    log.warning(
+        "Usuario inicial %s creado desde el entorno. Borrá TALANTON_ADMIN_EMAIL "
+        "y TALANTON_ADMIN_PASSWORD ahora que ya podés entrar.",
+        usuario.email,
+    )
+    return usuario
