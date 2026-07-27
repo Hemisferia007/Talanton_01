@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -14,15 +15,26 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from .. import services
-from ..config import PAISES, PAIS_NOMBRE, SCORE_MINIMO_ALERTA
+from ..config import (
+    LIMITE_ENVIOS_DIARIOS,
+    PAISES,
+    PAIS_NOMBRE,
+    SCORE_MINIMO_ALERTA,
+    gmail_configurado,
+)
+from ..correo import servicio as correo
+from ..correo import gmail as api_gmail
 from ..db import db_dependency, init_db
 from ..models import (
     ESTADOS_KANBAN,
+    CuentaGmail,
     Empresa,
     EstadoLead,
     Lead,
     Seniority,
 )
+
+COOKIE_ESTADO_OAUTH = "talanton_oauth_state"
 
 BASE = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE / "templates"))
@@ -133,8 +145,22 @@ def leads(
 def lead_detalle(request: Request, lead_id: int, db: Session = Depends(db_dependency)):
     lead = _lead_o_404(db, lead_id)
     vacantes = sorted(lead.empresa.vacantes, key=lambda v: (v.cerrada, -v.dias_abierta))
+    cuentas = correo.listar_cuentas(db)
     return templates.TemplateResponse(
-        request, "lead_detalle.html", _contexto(request, lead=lead, vacantes=vacantes)
+        request,
+        "lead_detalle.html",
+        _contexto(
+            request,
+            lead=lead,
+            vacantes=vacantes,
+            cuentas=cuentas,
+            # El borrador se arma acá para que el diálogo abra ya escrito, sin
+            # esperar una llamada al servidor.
+            redaccion=correo.borrador(db, lead, cuenta=cuentas[0] if cuentas else None),
+            gmail_listo=gmail_configurado(),
+            enviado=request.query_params.get("enviado"),
+            error_envio=request.query_params.get("error"),
+        ),
     )
 
 
@@ -246,6 +272,12 @@ def mi_empresa(request: Request, db: Session = Depends(db_dependency)):
             perfil=services.perfil(db),
             metricas=services.metricas(db),
             seniorities=list(Seniority),
+            cuentas=correo.listar_cuentas(db),
+            gmail_listo=gmail_configurado(),
+            limite_diario=LIMITE_ENVIOS_DIARIOS,
+            enviados_hoy={c.id: correo.enviados_hoy(db, c) for c in correo.listar_cuentas(db)},
+            error_oauth=request.query_params.get("error"),
+            conectada=request.query_params.get("conectada"),
         ),
     )
 
@@ -280,6 +312,177 @@ def guardar_mi_empresa(
     services.recalcular_todos(db)
     db.commit()
     return RedirectResponse("/mi-empresa", status_code=303)
+
+
+# --- Gmail: conexión de la cuenta --------------------------------------------
+
+
+@app.get("/conectar-gmail")
+def conectar_gmail():
+    """Manda a la persona al consent screen de Google."""
+    if not gmail_configurado():
+        raise HTTPException(
+            status_code=503,
+            detail="Falta configurar las credenciales de Google. Ver docs/gmail.md.",
+        )
+    # El state ata la vuelta de Google a este navegador: sin esto, un tercero
+    # podría inducir la conexión de una cuenta que no es la del usuario.
+    estado = secrets.token_urlsafe(24)
+    respuesta = RedirectResponse(api_gmail.url_de_autorizacion(estado), status_code=307)
+    respuesta.set_cookie(
+        COOKIE_ESTADO_OAUTH, estado, httponly=True, samesite="lax", max_age=600
+    )
+    return respuesta
+
+
+@app.get("/oauth/google/callback")
+def callback_google(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    db: Session = Depends(db_dependency),
+):
+    esperado = request.cookies.get(COOKIE_ESTADO_OAUTH)
+    if error:
+        return _volver_a_mi_empresa(f"Google devolvió un error: {error}")
+    if not code or not state or not esperado or not secrets.compare_digest(state, esperado):
+        return _volver_a_mi_empresa("La autorización no se pudo validar. Probá de nuevo.")
+
+    try:
+        credenciales = api_gmail.canjear_codigo(code)
+        correo.guardar_cuenta(db, credenciales)
+        db.commit()
+    except (api_gmail.ErrorGmail, correo.ErrorEnvio) as exc:
+        return _volver_a_mi_empresa(str(exc))
+
+    respuesta = _volver_a_mi_empresa(None, conectada=credenciales.email)
+    respuesta.delete_cookie(COOKIE_ESTADO_OAUTH)
+    return respuesta
+
+
+def _volver_a_mi_empresa(error: str | None, conectada: str | None = None):
+    from urllib.parse import urlencode
+
+    parametros = {}
+    if error:
+        parametros["error"] = error
+    if conectada:
+        parametros["conectada"] = conectada
+    destino = "/mi-empresa" + (f"?{urlencode(parametros)}" if parametros else "")
+    return RedirectResponse(destino, status_code=303)
+
+
+@app.post("/cuentas/{cuenta_id}")
+def guardar_cuenta(
+    cuenta_id: int,
+    nombre_remitente: str = Form(""),
+    firma: str = Form(""),
+    db: Session = Depends(db_dependency),
+):
+    cuenta = db.get(CuentaGmail, cuenta_id)
+    if cuenta is None:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    cuenta.nombre_remitente = nombre_remitente.strip() or None
+    cuenta.firma = firma.strip() or None
+    db.commit()
+    return RedirectResponse("/mi-empresa", status_code=303)
+
+
+@app.post("/cuentas/{cuenta_id}/desconectar")
+def desconectar_cuenta(cuenta_id: int, db: Session = Depends(db_dependency)):
+    cuenta = db.get(CuentaGmail, cuenta_id)
+    if cuenta is None:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    correo.desconectar(db, cuenta)
+    db.commit()
+    return RedirectResponse("/mi-empresa", status_code=303)
+
+
+# --- Redacción y envío -------------------------------------------------------
+
+
+@app.get("/leads/{lead_id}/redactar")
+def redactar(
+    lead_id: int,
+    plantilla: str | None = None,
+    cuenta_id: int | None = None,
+    db: Session = Depends(db_dependency),
+):
+    """Devuelve el borrador para una plantilla. Lo consume el diálogo al vuelo."""
+    lead = _lead_o_404(db, lead_id)
+    cuenta = db.get(CuentaGmail, cuenta_id) if cuenta_id else None
+    datos = correo.borrador(db, lead, clave=plantilla, cuenta=cuenta)
+    return JSONResponse(
+        {
+            "plantilla": datos["plantilla"].clave,
+            "para": datos["para"],
+            "asunto": datos["asunto"],
+            "cuerpo": datos["cuerpo"],
+        }
+    )
+
+
+@app.post("/leads/{lead_id}/enviar")
+def enviar_mail(
+    lead_id: int,
+    cuenta_id: int = Form(...),
+    para: str = Form(...),
+    asunto: str = Form(...),
+    cuerpo: str = Form(...),
+    plantilla: str = Form(""),
+    db: Session = Depends(db_dependency),
+):
+    lead = _lead_o_404(db, lead_id)
+    cuenta = db.get(CuentaGmail, cuenta_id)
+    if cuenta is None or not cuenta.activa:
+        return RedirectResponse(
+            f"/leads/{lead_id}?error=La+cuenta+de+Gmail+no+está+conectada", status_code=303
+        )
+
+    try:
+        correo.enviar(
+            db,
+            lead,
+            cuenta,
+            para=para,
+            asunto=asunto,
+            cuerpo=cuerpo,
+            plantilla=plantilla or None,
+        )
+        db.commit()
+    except correo.ErrorEnvio as exc:
+        db.commit()  # el intento fallido queda registrado
+        from urllib.parse import quote
+
+        return RedirectResponse(f"/leads/{lead_id}?error={quote(str(exc))}", status_code=303)
+
+    return RedirectResponse(f"/leads/{lead_id}?enviado=1", status_code=303)
+
+
+@app.post("/leads/{lead_id}/respuesta")
+def registrar_respuesta(
+    lead_id: int,
+    cuerpo: str = Form(...),
+    de: str = Form(""),
+    asunto: str = Form(""),
+    db: Session = Depends(db_dependency),
+):
+    """Suma al hilo una respuesta que llegó a la casilla.
+
+    Hace falta porque el permiso `gmail.send` no deja leer la casilla.
+    """
+    lead = _lead_o_404(db, lead_id)
+    try:
+        correo.registrar_respuesta(
+            db, lead, cuerpo=cuerpo, de=de.strip() or None, asunto=asunto.strip() or None
+        )
+        db.commit()
+    except correo.ErrorEnvio as exc:
+        from urllib.parse import quote
+
+        return RedirectResponse(f"/leads/{lead_id}?error={quote(str(exc))}", status_code=303)
+    return RedirectResponse(f"/leads/{lead_id}", status_code=303)
 
 
 @app.post("/recalcular")

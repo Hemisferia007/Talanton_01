@@ -314,6 +314,119 @@ label { display: block; font-size: var(--t-xs); color: var(--n-600); font-weight
 .aviso { font-size: var(--t-xs); }
 .aviso:empty { visibility: hidden; }
 
+.alerta {
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-sm);
+  border-left: 3px solid;
+  margin: 0 0 var(--s4);
+  font-size: var(--t-sm);
+  max-width: 75ch;
+}
+.alerta-ok { background: var(--acento-tinta); border-color: var(--acento); color: var(--acento); }
+.alerta-error { background: var(--critico-tinta); border-color: var(--critico); color: var(--critico); }
+
+/* --- Ventana de redacción ---
+   <dialog> nativo: el foco atrapado, el Esc y el fondo inerte los pone el
+   navegador. Acá sólo va la caja. */
+.ventana {
+  width: min(680px, calc(100vw - var(--s5) * 2));
+  max-height: min(88vh, 860px);
+  padding: 0;
+  border: 1px solid var(--n-200);
+  border-radius: var(--r-lg);
+  background: var(--n-0);
+  color: var(--n-900);
+  box-shadow: var(--flotante);
+}
+.ventana::backdrop { background: rgba(24, 28, 25, .38); }
+
+.ventana-forma { display: flex; flex-direction: column; max-height: inherit; }
+
+.ventana-barra {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
+  padding: var(--s4);
+  border-bottom: 1px solid var(--n-200);
+}
+.ventana-barra h2 { margin: 0; }
+
+/* Sólo el cuerpo scrollea: barra y pie quedan siempre a la vista. */
+.ventana-cuerpo { padding: var(--s4); overflow-y: auto; }
+.ventana-cuerpo .campo:last-child { margin-bottom: 0; }
+.ventana-cuerpo textarea { min-height: 240px; font-family: inherit; }
+
+.ventana-pie {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--n-200);
+  background: var(--n-50);
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+}
+.ventana-pie .ayuda { margin: 0; }
+.ventana-acciones { display: flex; gap: var(--s2); margin-left: auto; }
+
+/* --- Conversación ---
+   Los mails del lead como hilo. Lo nuestro alineado a la derecha, lo del
+   cliente a la izquierda, igual que cualquier chat. */
+.chat {
+  list-style: none;
+  margin: 0 0 var(--s4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.burbuja {
+  max-width: 82%;
+  padding: var(--s3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--n-200);
+  font-size: var(--t-sm);
+}
+.burbuja.saliente {
+  align-self: flex-end;
+  background: var(--acento-tinta);
+  border-color: var(--acento-borde);
+  /* La esquina cortada del lado del emisor marca de quién es sin usar color. */
+  border-bottom-right-radius: var(--r-sm);
+}
+.burbuja.entrante {
+  align-self: flex-start;
+  background: var(--n-0);
+  border-bottom-left-radius: var(--r-sm);
+}
+.burbuja.fallida {
+  background: var(--critico-tinta);
+  border-color: #eecccc;
+}
+
+.burbuja-encabezado {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s3); margin-bottom: var(--s1);
+  font-size: var(--t-xs); color: var(--n-600);
+}
+.burbuja-encabezado .quien { font-weight: 600; }
+.burbuja-asunto { font-weight: 600; margin-bottom: var(--s1); }
+/* Los mails vienen en texto plano: hay que respetar los saltos de línea. */
+.burbuja-cuerpo { white-space: pre-wrap; line-height: 1.55; }
+.burbuja-error { margin: var(--s2) 0 0; font-size: var(--t-xs); color: var(--critico); }
+
+.registrar-respuesta { border-top: 1px solid var(--n-200); padding-top: var(--s3); }
+.registrar-respuesta summary {
+  cursor: pointer; font-size: var(--t-sm); font-weight: 550; color: var(--acento);
+  padding: var(--s1) 0;
+}
+.registrar-respuesta[open] summary { margin-bottom: var(--s2); }
+
+/* --- Cuentas conectadas --- */
+.cuenta {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s4);
+  padding: var(--s3) 0;
+  border-bottom: 1px solid var(--n-200);
+}
+.cuenta:last-of-type { border-bottom: none; }
+
 @media (prefers-reduced-motion: reduce) {
   /* Sin animación, pero los estados siguen siendo visibles. */
   * { transition-duration: 1ms !important; animation-duration: 1ms !important; }

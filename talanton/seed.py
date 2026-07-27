@@ -14,9 +14,13 @@ from sqlalchemy.orm import Session
 from .models import (
     Actividad,
     Contacto,
+    CuentaGmail,
+    Direccion,
     Empresa,
     EstadoLead,
+    EstadoMensaje,
     Lead,
+    Mensaje,
     Vacante,
     ahora,
 )
@@ -104,8 +108,55 @@ ESTADOS_INICIALES = [
 ]
 
 
+# Hilo de ejemplo, para que la conversación no se vea vacía en la demo.
+# (empresa, dirección, días atrás, asunto, cuerpo)
+CONVERSACION = [
+    (
+        "Andes Logística S.R.L.",
+        Direccion.SALIENTE,
+        9,
+        "Jefe de Depósito — hace 83 días",
+        "Hola Marina,\n\nVi que en Andes Logística están buscando Jefe de Depósito en "
+        "Mendoza desde hace 83 días, y que ya republicaron el aviso.\n\nEs un perfil que "
+        "solemos cubrir. Si te sirve, en una llamada de quince minutos te cuento cómo lo "
+        "encararíamos y qué plazo real manejamos para una búsqueda así.\n\n¿Te queda "
+        "cómodo esta semana?\n\nSaludos,\nJonatan\nTalanton",
+    ),
+    (
+        "Andes Logística S.R.L.",
+        Direccion.ENTRANTE,
+        7,
+        "Re: Jefe de Depósito — hace 83 días",
+        "Hola Jonatan, gracias por escribir.\n\nSí, la verdad que con esa búsqueda "
+        "venimos remando. Publicamos dos veces y los candidatos que llegan no tienen "
+        "experiencia en logística de frío, que es lo que necesitamos.\n\n¿Podés el jueves "
+        "a las 10?\n\nMarina",
+    ),
+    (
+        "Andes Logística S.R.L.",
+        Direccion.SALIENTE,
+        7,
+        "Re: Jefe de Depósito — hace 83 días",
+        "Perfecto Marina, jueves 10 me queda bien. Te mando la invitación.\n\nSi podés, "
+        "traé el perfil que venían usando así lo revisamos juntos: cuando los candidatos "
+        "no llegan con la experiencia específica, casi siempre hay algo del aviso que "
+        "está filtrando de más.\n\nSaludos,\nJonatan",
+    ),
+    (
+        "Cerámica Litoral",
+        Direccion.SALIENTE,
+        4,
+        "Jefe de Mantenimiento Industrial — hace 114 días",
+        "Hola Sergio,\n\nVi que en Cerámica Litoral están buscando Jefe de Mantenimiento "
+        "Industrial en Paraná desde hace 114 días, y que ya republicaron el aviso.\n\n"
+        "Es un perfil que solemos cubrir. ¿Te sirve una llamada corta esta semana?\n\n"
+        "Saludos,\nJonatan\nTalanton",
+    ),
+]
+
+
 def limpiar(session: Session) -> None:
-    for modelo in (Actividad, Lead, Vacante, Contacto, Empresa):
+    for modelo in (Mensaje, Actividad, Lead, Vacante, Contacto, Empresa, CuentaGmail):
         session.execute(delete(modelo))
     session.commit()
 
@@ -189,6 +240,27 @@ def sembrar(session: Session, *, reiniciar: bool = True) -> None:
             f"Primer contacto por mail con {por_nombre[nombre_emp].nombre}.",
             tipo="contacto",
             autor=responsable,
+        )
+
+    # El hilo se arma directo, sin pasar por el envío real: son datos de demo,
+    # no hay ninguna casilla conectada.
+    for nombre_emp, direccion, dias, asunto, cuerpo in CONVERSACION:
+        empresa = por_nombre[nombre_emp]
+        contacto = next((c for c in empresa.contactos if c.email), None)
+        cuando = ahora() - timedelta(days=dias)
+        entrante = direccion == Direccion.ENTRANTE
+        session.add(
+            Mensaje(
+                lead_id=empresa.lead.id,
+                direccion=direccion,
+                estado=EstadoMensaje.RECIBIDO if entrante else EstadoMensaje.ENVIADO,
+                de=(contacto.email if contacto else None) if entrante else None,
+                para="" if entrante else (contacto.email if contacto else ""),
+                asunto=asunto,
+                cuerpo=cuerpo,
+                creado_en=cuando,
+                enviado_en=cuando,
+            )
         )
 
     session.commit()

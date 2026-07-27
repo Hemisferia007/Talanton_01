@@ -12,6 +12,13 @@
   </div>
 </div>
 
+{% if conectada %}
+  <p class="alerta alerta-ok" role="status">Cuenta {{ conectada }} conectada.</p>
+{% endif %}
+{% if error_oauth %}
+  <p class="alerta alerta-error" role="alert">{{ error_oauth }}</p>
+{% endif %}
+
 <div class="metricas">
   <div class="metrica"><div class="valor">{{ metricas.empresas }}</div><div class="etiqueta">Empresas rastreadas</div></div>
   <div class="metrica"><div class="valor">{{ metricas.vacantes_abiertas }}</div><div class="etiqueta">Avisos abiertos</div></div>
@@ -83,4 +90,51 @@
     </section>
   </div>
 </form>
+
+<section class="panel" style="margin-top:var(--s4)" aria-labelledby="t-gmail">
+  <h2 id="t-gmail">Casillas para enviar</h2>
+  <p class="subtitulo">
+    Los mails salen desde tu propia cuenta de Gmail, con permiso de envío
+    únicamente: Talanton no puede leer tu casilla.
+  </p>
+
+  {% if not gmail_listo %}
+    <p class="vacio">
+      Falta configurar las credenciales de Google
+      (<code>TALANTON_GOOGLE_CLIENT_ID</code> y <code>TALANTON_GOOGLE_CLIENT_SECRET</code>).
+      El paso a paso está en <code>docs/gmail.md</code>.
+    </p>
+  {% else %}
+    {% for c in cuentas %}
+      <div class="cuenta">
+        <form method="post" action="/cuentas/{{ c.id }}" style="flex:1">
+          <div class="celda-titulo">{{ c.email }}</div>
+          <p class="ayuda">
+            {{ enviados_hoy.get(c.id, 0) }} de {{ limite_diario }} envíos usados hoy.
+            {% if c.ultimo_error %}Último error: {{ c.ultimo_error }}{% endif %}
+          </p>
+          <div class="campo" style="margin-top:var(--s3)">
+            <label for="remitente-{{ c.id }}">Nombre del remitente</label>
+            <input type="text" id="remitente-{{ c.id }}" name="nombre_remitente"
+                   value="{{ c.nombre_remitente or '' }}">
+          </div>
+          <div class="campo">
+            <label for="firma-{{ c.id }}">Firma</label>
+            <textarea id="firma-{{ c.id }}" name="firma" rows="3">{{ c.firma or '' }}</textarea>
+          </div>
+          <button class="btn btn-fantasma" type="submit">Guardar</button>
+        </form>
+        <form method="post" action="/cuentas/{{ c.id }}/desconectar">
+          <button class="btn btn-fantasma" type="submit">Desconectar</button>
+        </form>
+      </div>
+    {% else %}
+      <p class="vacio">Todavía no hay ninguna casilla conectada.</p>
+    {% endfor %}
+
+    <p style="margin-top:var(--s4)">
+      <a class="btn" href="/conectar-gmail">Conectar una cuenta de Gmail</a>
+    </p>
+  {% endif %}
+</section>
 {% endblock %}

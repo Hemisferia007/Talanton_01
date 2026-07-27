@@ -1,0 +1,67 @@
+{# Ventana de redacción. <dialog> nativo: trae foco atrapado, Esc para cerrar y
+   fondo inerte sin escribir una línea de JS para eso. #}
+<dialog id="redactar" class="ventana" aria-labelledby="redactar-titulo">
+  <form method="post" action="/leads/{{ lead.id }}/enviar" class="ventana-forma">
+    <header class="ventana-barra">
+      <h2 id="redactar-titulo">Escribirle a {{ lead.empresa.nombre }}</h2>
+      <button type="button" class="btn btn-fantasma" data-cerrar-ventana>Cerrar</button>
+    </header>
+
+    <div class="ventana-cuerpo">
+      <div class="campo">
+        <label for="m-cuenta">Enviar desde</label>
+        <select id="m-cuenta" name="cuenta_id">
+          {% for c in cuentas %}
+            <option value="{{ c.id }}">{{ c.etiqueta }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="campo">
+        <label for="m-plantilla">Plantilla</label>
+        <select id="m-plantilla" name="plantilla" data-lead="{{ lead.id }}">
+          {% for p in redaccion.opciones %}
+            <option value="{{ p.clave }}" {{ 'selected' if p.clave == redaccion.plantilla.clave }}>
+              {{ p.nombre }}
+            </option>
+          {% endfor %}
+        </select>
+        <p class="ayuda" id="ayuda-plantilla">
+          {{ redaccion.plantilla.descripcion }}
+          Al cambiarla se reescribe el borrador; lo que edites a mano se pierde.
+        </p>
+      </div>
+
+      <div class="campo">
+        <label for="m-para">Para</label>
+        <input type="text" id="m-para" name="para" value="{{ redaccion.para }}"
+               required aria-describedby="ayuda-para">
+        <p class="ayuda" id="ayuda-para">
+          {% if redaccion.contacto %}
+            {{ redaccion.contacto.nombre }} — {{ redaccion.contacto.cargo or 'sin cargo' }}
+          {% else %}
+            No hay contacto cargado para esta empresa. Escribí la dirección a mano.
+          {% endif %}
+        </p>
+      </div>
+
+      <div class="campo">
+        <label for="m-asunto">Asunto</label>
+        <input type="text" id="m-asunto" name="asunto" value="{{ redaccion.asunto }}" required>
+      </div>
+
+      <div class="campo">
+        <label for="m-cuerpo">Mensaje</label>
+        <textarea id="m-cuerpo" name="cuerpo" rows="14" required>{{ redaccion.cuerpo }}</textarea>
+      </div>
+    </div>
+
+    <footer class="ventana-pie">
+      <p class="ayuda" id="estado-redaccion" role="status" aria-live="polite"></p>
+      <div class="ventana-acciones">
+        <button type="button" class="btn btn-fantasma" data-cerrar-ventana>Cancelar</button>
+        <button type="submit" class="btn">Enviar</button>
+      </div>
+    </footer>
+  </form>
+</dialog>

@@ -39,7 +39,12 @@ python -m talanton.cli ingestar  # lee fuentes.json
 | **Tablero** | Kanban con drag & drop: Nuevo → Contactado → En conversación → Reunión → Propuesta → Ganado/Perdido |
 | **Leads** | Listado filtrable por estado, país, score y texto, con la señal principal de cada uno |
 | **Avisos** | Todas las vacantes detectadas, ordenadas por días abiertas |
-| **Mi empresa** | Datos de la consultora y el ICP, que alimenta el eje de *fit* del score |
+| **Mi empresa** | Datos de la consultora, el ICP que alimenta el eje de *fit*, y las casillas de Gmail conectadas |
+
+Dentro de cada lead, el intercambio con la empresa se ve como un **hilo de chat**:
+lo que mandamos de un lado, lo que contestaron del otro, en orden. Los mails se
+escriben desde una ventana de redacción que abre ya con el borrador armado a partir
+de la señal concreta del lead.
 
 La interfaz está construida sobre tokens: una escala de espacio base 4, cinco tamaños
 tipográficos y una rampa de neutros sin `#000` ni `#fff`. Los bordes estructuran y las
@@ -63,6 +68,17 @@ justifica, más un **gancho** listo para abrir la conversación:
 
 > Vi que hace 92 días están buscando Jefe de Depósito en Mendoza. Ya la republicaron, así
 > que imagino que no está siendo fácil.
+
+**Envío por Gmail** (OAuth2, permiso `gmail.send` únicamente — Talanton puede mandar
+en tu nombre, no leer tu casilla). Alta paso a paso en [`docs/gmail.md`](docs/gmail.md).
+
+- Los refresh tokens se guardan **cifrados** en la base; la clave nunca va a la base.
+- Cinco plantillas que se eligen solas según la señal del lead: búsqueda estirada,
+  volumen, rotación, seguimiento y presentación. El mail abre por algo que la empresa
+  reconoce como cierto sobre sí misma, no por quiénes somos.
+- Enviar registra la actividad, marca la fecha de contacto y mueve el lead a
+  *Contactado*. Registrar una respuesta lo mueve a *En conversación*.
+- Tope diario conservador (40 por cuenta) para no quemar la reputación del dominio.
 
 **Ingesta** en tres carriles, del más barato al más caro:
 
@@ -95,11 +111,12 @@ talanton/
   scoring.py      Los cuatro ejes y sus razones
   services.py     Upserts, cierre de vacantes, kanban, consultas
   ingest/         Conectores y corrida diaria
-  web/            FastAPI + templates + kanban
+  correo/         Gmail: OAuth, cifrado de tokens, plantillas y envío
+  web/            FastAPI + templates + kanban + ventana de redacción
   seed.py         Datos de demo
   cli.py          init | seed | ingestar | recalcular | servir
-tests/            73 tests, incluidos chequeos de accesibilidad del HTML servido
-docs/             Estrategia
+tests/            96 tests, incluidos chequeos de accesibilidad del HTML servido
+docs/             Estrategia y alta de Gmail
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```
 

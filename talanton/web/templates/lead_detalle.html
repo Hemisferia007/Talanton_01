@@ -13,8 +13,22 @@
       {% if lead.empresa.dominio %} · <a href="https://{{ lead.empresa.dominio }}" target="_blank" rel="noopener">{{ lead.empresa.dominio }}</a>{% endif %}
     </p>
   </div>
-  <a class="btn btn-fantasma" href="/leads">Volver a leads</a>
+  <div style="display:flex; gap:var(--s2)">
+    {% if cuentas %}
+      <button type="button" class="btn" id="abrir-redactar">Escribir un mail</button>
+    {% elif gmail_listo %}
+      <a class="btn" href="/mi-empresa">Conectar Gmail para escribir</a>
+    {% endif %}
+    <a class="btn btn-fantasma" href="/leads">Volver a leads</a>
+  </div>
 </div>
+
+{% if enviado %}
+  <p class="alerta alerta-ok" role="status">Mail enviado. Quedó registrado en la actividad.</p>
+{% endif %}
+{% if error_envio %}
+  <p class="alerta alerta-error" role="alert">No se pudo enviar: {{ error_envio }}</p>
+{% endif %}
 
 {% if lead.gancho %}
 <div class="gancho-caja">
@@ -65,6 +79,64 @@
         <p class="vacio">Sin búsquedas registradas.</p>
       {% endif %}
     </section>
+
+    <section class="panel" aria-labelledby="t-conversacion">
+      <h2 id="t-conversacion">Conversación</h2>
+      <p class="subtitulo">Todo el intercambio con {{ lead.empresa.nombre }}, en orden.</p>
+
+      {% if lead.mensajes %}
+        <ol class="chat">
+          {% for m in lead.mensajes %}
+          <li class="burbuja {{ 'entrante' if m.es_entrante else 'saliente' }}
+                     {{ 'fallida' if m.estado.value == 'error' }}">
+            <div class="burbuja-encabezado">
+              <span class="quien">
+                {% if m.es_entrante %}{{ m.de }}{% else %}{{ m.cuenta.email if m.cuenta else 'Talanton' }}{% endif %}
+              </span>
+              <time class="cuando" datetime="{{ m.fecha.isoformat() }}">
+                {{ m.fecha.strftime('%d/%m/%Y %H:%M') }}
+              </time>
+            </div>
+            <div class="burbuja-asunto">{{ m.asunto }}</div>
+            <div class="burbuja-cuerpo">{{ m.cuerpo }}</div>
+            {% if m.estado.value == 'error' %}
+              <p class="burbuja-error">No se pudo enviar: {{ m.error }}</p>
+            {% elif m.estado.value == 'borrador' %}
+              <p class="burbuja-error">Quedó como borrador, no se envió.</p>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="vacio">
+          Todavía no hay intercambio con esta empresa.
+          {% if cuentas %}Escribile el primer mail desde el botón de arriba.{% endif %}
+        </p>
+      {% endif %}
+
+      {% if lead.mensajes %}
+      <details class="registrar-respuesta">
+        <summary>Registrar una respuesta que llegó</summary>
+        <p class="ayuda">
+          Talanton sólo tiene permiso para enviar, no para leer tu casilla. Pegá acá lo
+          que te contestaron y queda en el hilo.
+        </p>
+        <form method="post" action="/leads/{{ lead.id }}/respuesta">
+          <div class="campo">
+            <label for="respuesta-de">Quién respondió</label>
+            <input type="text" id="respuesta-de" name="de"
+                   value="{{ lead.mensajes[-1].para if not lead.mensajes[-1].es_entrante else lead.mensajes[-1].de }}">
+          </div>
+          <div class="campo">
+            <label for="respuesta-cuerpo">Qué dijo</label>
+            <textarea id="respuesta-cuerpo" name="cuerpo" required></textarea>
+          </div>
+          <button class="btn btn-fantasma" type="submit">Sumar al hilo</button>
+        </form>
+      </details>
+      {% endif %}
+    </section>
+
 
     <section class="panel" aria-labelledby="t-score">
       <h2 id="t-score">Por qué este score</h2>
@@ -174,4 +246,12 @@
     </section>
   </div>
 </div>
+
+{% if cuentas %}
+  {% include "_redactar.html" %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if cuentas %}<script src="/static/redactar.js"></script>{% endif %}
 {% endblock %}

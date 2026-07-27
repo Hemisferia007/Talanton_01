@@ -245,6 +245,13 @@ class Lead(Base):
         cascade="all, delete-orphan",
         order_by="Actividad.creada_en.desc()",
     )
+    # Orden cronológico ascendente: el hilo se lee como un chat, de arriba
+    # hacia abajo.
+    mensajes: Mapped[list["Mensaje"]] = relationship(
+        back_populates="lead",
+        cascade="all, delete-orphan",
+        order_by="Mensaje.creado_en",
+    )
 
     @property
     def lista_razones(self) -> list[str]:
@@ -271,6 +278,101 @@ class Actividad(Base):
     creada_en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
 
     lead: Mapped[Lead] = relationship(back_populates="actividades")
+
+
+class CuentaGmail(Base):
+    """Una casilla conectada por OAuth desde la que se manda.
+
+    Se guarda el refresh token cifrado (ver correo/cripto.py); el access token
+    dura una hora y se renueva solo.
+    """
+
+    __tablename__ = "cuentas_gmail"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    nombre_remitente: Mapped[str | None] = mapped_column(String(200))
+    firma: Mapped[str | None] = mapped_column(Text)
+
+    refresh_token_cifrado: Mapped[str] = mapped_column(Text)
+    access_token: Mapped[str | None] = mapped_column(Text)
+    access_token_expira: Mapped[datetime | None] = mapped_column(DateTime)
+
+    activa: Mapped[bool] = mapped_column(Boolean, default=True)
+    conectada_en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
+    ultimo_error: Mapped[str | None] = mapped_column(Text)
+
+    mensajes: Mapped[list["Mensaje"]] = relationship(back_populates="cuenta")
+
+    @property
+    def etiqueta(self) -> str:
+        return f"{self.nombre_remitente} <{self.email}>" if self.nombre_remitente else self.email
+
+
+class EstadoMensaje(str, enum.Enum):
+    BORRADOR = "borrador"
+    ENVIADO = "enviado"
+    ERROR = "error"
+    RECIBIDO = "recibido"
+
+    @property
+    def etiqueta(self) -> str:
+        return {
+            "borrador": "Borrador",
+            "enviado": "Enviado",
+            "error": "Falló",
+            "recibido": "Recibido",
+        }[self.value]
+
+
+class Direccion(str, enum.Enum):
+    """Quién escribió. Es lo que permite mostrar el hilo como conversación."""
+
+    SALIENTE = "saliente"
+    ENTRANTE = "entrante"
+
+
+class Mensaje(Base):
+    """Un mail redactado desde el CRM. Queda registrado se envíe o no."""
+
+    __tablename__ = "mensajes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    lead_id: Mapped[int] = mapped_column(ForeignKey("leads.id"), index=True)
+    cuenta_id: Mapped[int | None] = mapped_column(ForeignKey("cuentas_gmail.id"))
+
+    direccion: Mapped[Direccion] = mapped_column(
+        Enum(Direccion), default=Direccion.SALIENTE, index=True
+    )
+    para: Mapped[str] = mapped_column(String(300))
+    # En los entrantes es quien nos escribió; en los salientes queda en None y
+    # se muestra la casilla de la cuenta.
+    de: Mapped[str | None] = mapped_column(String(300))
+    asunto: Mapped[str] = mapped_column(String(400))
+    cuerpo: Mapped[str] = mapped_column(Text)
+    plantilla: Mapped[str | None] = mapped_column(String(60))
+
+    estado: Mapped[EstadoMensaje] = mapped_column(
+        Enum(EstadoMensaje), default=EstadoMensaje.BORRADOR, index=True
+    )
+    gmail_message_id: Mapped[str | None] = mapped_column(String(120))
+    gmail_thread_id: Mapped[str | None] = mapped_column(String(120))
+    error: Mapped[str | None] = mapped_column(Text)
+
+    creado_en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
+    enviado_en: Mapped[datetime | None] = mapped_column(DateTime)
+
+    lead: Mapped["Lead"] = relationship(back_populates="mensajes")
+    cuenta: Mapped[CuentaGmail | None] = relationship(back_populates="mensajes")
+
+    @property
+    def es_entrante(self) -> bool:
+        return self.direccion == Direccion.ENTRANTE
+
+    @property
+    def fecha(self) -> datetime:
+        """La que ordena el hilo: cuándo ocurrió, no cuándo se guardó."""
+        return self.enviado_en or self.creado_en
 
 
 class PerfilConsultora(Base):

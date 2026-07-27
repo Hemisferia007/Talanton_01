@@ -4,6 +4,8 @@ jinja2>=3.1
 sqlalchemy>=2.0
 python-multipart>=0.0.9
 httpx>=0.27
+# Cifra los refresh tokens de Gmail en la base.
+cryptography>=42.0
 
 # Capa de adquisición. Opcional para levantar la web y correr los tests;
 # necesaria para la ingesta real (parseo adaptativo y sesiones stealth).
