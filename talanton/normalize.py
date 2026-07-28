@@ -98,15 +98,28 @@ def clave_empresa(nombre: str, dominio: str | None = None) -> tuple[str, str | N
 _SENIORITY_PATRONES: list[tuple[Seniority, list[str]]] = [
     (
         Seniority.DIRECCION,
-        ["director", "directora", "chief", "cto", "cfo", "ceo", "coo", "cmo", "vp",
-         "vicepresidente", "head of", "country manager"],
+        ["director", "directora", "chief", "cto", "cfo", "ceo", "coo", "cmo", "cio",
+         "cpo", "ciso", "vp", "vicepresidente", "head of", "country manager",
+         "founder", "cofounder", "socio", "socia"],
     ),
     (
         Seniority.JEFATURA,
         ["gerente", "jefe", "jefa", "manager", "lider", "leader", "supervisor",
-         "supervisora", "coordinador", "coordinadora", "responsable de"],
+         "supervisora", "coordinador", "coordinadora", "responsable de",
+         # En IT la jefatura casi nunca dice "jefe": dice "lead". Sin esto, un
+         # Tech Lead —de los puestos más difíciles y mejor pagos que existen—
+         # caía en INDEFINIDO y pesaba menos que un analista junior.
+         "lead", "tech lead", "team lead", "scrum master"],
     ),
-    (Seniority.SENIOR, ["senior", "sr", "especialista", "experto"]),
+    # Staff y Principal están por encima de Senior en la carrera técnica, pero
+    # son roles individuales, no de conducción. Van acá y no en jefatura: es más
+    # honesto y de todos modos matchean un ICP que apunta a "senior".
+    # "specialist" tiene que estar junto a "especialista": si se saca uno y el
+    # otro no, «Especialista en Ciberseguridad» y «Cybersecurity Specialist»
+    # quedan como roles distintos.
+    (Seniority.SENIOR, ["senior", "sr", "especialista", "specialist", "experto",
+                        "staff", "principal", "arquitecto", "arquitecta",
+                        "architect"]),
     (Seniority.SEMI_SENIOR, ["semi senior", "semisenior", "ssr", "semi sr"]),
     (Seniority.JUNIOR, ["junior", "jr", "trainee", "pasante", "practicante", "becario"]),
 ]
@@ -120,19 +133,37 @@ _SENIORITY_ORDENADOS: list[tuple[Seniority, str]] = sorted(
     reverse=True,
 )
 
-# El orden importa: se evalúa de más específico a menos.
+# El orden importa: se evalúa de arriba hacia abajo y cada regla pisa el texto,
+# así que **lo compuesto va antes que lo genérico**. Si `ingeniero -> engineer`
+# corriera primero, «Ingeniero de Datos» ya sería «engineer de datos» y la regla
+# de data engineer no lo alcanzaría nunca: quedaría como un rol distinto de
+# «Data Engineer» y el reposteo entre los dos se volvería invisible. El reposteo
+# es la señal más fuerte del producto, así que este orden no es cosmético.
 _ALIAS_ROL: list[tuple[str, str]] = [
+    # --- Compuestos: consumen el sustantivo genérico que llevan adentro ---
+    (r"\b(data engineer|ingeniero de datos|ingeniera de datos)\b", "data engineer"),
+    (r"\b(data scientist|cientifico de datos|cientifica de datos)\b", "data scientist"),
+    (r"\b(sre|site reliability engineer|site reliability)\b", "sre"),
+    # Las dos formas del compuesto, porque el orden de las palabras cambia entre
+    # idiomas: «DevOps Engineer» y «Ingeniero DevOps» son el mismo puesto.
+    (r"\b(devops engineer|ingeniero devops|ingeniera devops|devops|dev ops)\b", "devops"),
+    (r"\b(product owner|product manager)\b", "product"),
+    (r"\b(analista funcional)\b", "analista funcional"),
+    (r"\b(ciberseguridad|cybersecurity|seguridad informatica|infosec)\b", "seguridad"),
+    (r"\b(soporte|helpdesk|help desk|mesa de ayuda|service desk)\b", "soporte"),
+    (r"\b(infraestructura|infrastructure|cloud|sysadmin)\b", "infraestructura"),
+    (r"\b(ux|ui|ux ui|disenador ux|disenadora ux)\b", "ux"),
+    # --- Modificadores de stack ---
     (r"\bfull ?stack\b", "full stack"),
     (r"\bfront ?end\b", "frontend"),
     (r"\bback ?end\b", "backend"),
+    # --- Genéricos ---
     (r"\b(desarrollador|desarrolladora|programador|programadora|dev|developer)\b", "developer"),
     (r"\b(ingeniero|ingeniera|engineer)\b", "engineer"),
     (r"\b(contador|contadora|accountant)\b", "contador"),
     (r"\b(vendedor|vendedora|ejecutivo comercial|ejecutiva comercial|sales rep)\b", "comercial"),
-    (r"\b(analista funcional)\b", "analista funcional"),
     (r"\b(analista|analyst)\b", "analista"),
-    (r"\b(recursos humanos|rrhh|hr|people|talent acquisition|ta)\b", "rrhh"),
-    (r"\b(data scientist|cientifico de datos|cientifica de datos)\b", "data scientist"),
+    (r"\b(recursos humanos|rrhh|hr|people|talent acquisition)\b", "rrhh"),
     (r"\b(qa|quality assurance|tester)\b", "qa"),
 ]
 

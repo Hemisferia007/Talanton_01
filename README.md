@@ -169,8 +169,11 @@ exactamente igual que un día tranquilo — y el histórico que no se juntó no 
 - `primera_vez_vista` no se pisa nunca. Es lo que permite calcular días abiertos.
 - Si una vacante cerrada reaparece, cuenta como **reposteo**: reintentaron y volvieron a
   fallar.
-- Los roles se normalizan (`Programador Full-Stack Ssr` ≡ `Full Stack Developer Senior`),
-  sin lo cual las señales de reposteo y recurrencia directamente no existen.
+- Los roles se normalizan (`Programador Full-Stack Ssr` ≡ `Full Stack Developer Senior`,
+  `Ingeniero DevOps` ≡ `DevOps Engineer`), sin lo cual las señales de reposteo y
+  recurrencia directamente no existen. El vocabulario de IT está cubierto en los dos
+  idiomas, incluida la escalera técnica: `Tech Lead` pesa como jefatura, `Staff` y
+  `Principal` como senior.
 
 ## Poner esto en línea
 
@@ -212,7 +215,7 @@ talanton/
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            368 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
+tests/            392 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
 docs/             Primera búsqueda, estrategia, Gmail, LinkedIn/Apify, Apollo, asistente y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```

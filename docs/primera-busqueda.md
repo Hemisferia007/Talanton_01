@@ -96,6 +96,36 @@ El tope de envío es de **40 por casilla y por día**, y no conviene subirlo.
 
 ---
 
+## Si el rubro es IT
+
+Es el de más volumen en Argentina y también el más peleado: casi toda empresa de
+IT tiene reclutamiento interno, y eso baja el eje de accesibilidad del score. No
+lo descarta, pero cambia el ángulo.
+
+**Lo que no vas a vender**: el perfil que el equipo interno cubre publicando en
+LinkedIn. Un Semi Senior de React entra solo.
+
+**Lo que sí**: el que el equipo interno viene intentando hace tres meses. Suele
+ser una de estas cuatro formas:
+
+- **Seniority alto en carrera técnica** — Staff, Principal, Arquitecto, Tech Lead.
+- **Stack viejo o de nicho** — COBOL, mainframe, SAP ABAP, .NET Framework,
+  Salesforce, Oracle. El mercado es chico y el equipo interno no tiene red ahí.
+- **Perfiles híbridos** — Data Engineer con dominio de negocio, SRE con
+  seguridad, especialista en ciberseguridad.
+- **Fuera de Buenos Aires**, con presencialidad o hibridez obligatoria.
+
+Por eso los filtros de Apollo van a **empresas de producto y servicios de IT de
+50 a 500**: por debajo de 50 no hay presupuesto para un fee, y por encima de 500
+hay un equipo de selección grande que compite con vos por el mandato.
+
+Talanton entiende el vocabulario de IT en los dos idiomas: «Ingeniero DevOps» y
+«DevOps Engineer» cuentan como el mismo puesto —si no, un reposteo se vería como
+dos búsquedas distintas— y «Tech Lead» pesa como jefatura, no como un título
+suelto sin categoría.
+
+---
+
 ## Por qué un rubro por vez
 
 Es la parte que más rinde y la que más se saltea.

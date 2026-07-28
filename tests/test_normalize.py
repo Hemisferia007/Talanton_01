@@ -1,5 +1,8 @@
+import pytest
+
 from talanton import normalize
 from talanton.models import Seniority
+from talanton.normalize import detectar_seniority, normalizar_rol
 
 
 def test_nombre_empresa_ignora_sufijos_societarios():
@@ -41,3 +44,64 @@ def test_detecta_avisos_publicados_por_consultora():
     assert normalize.publicado_por_consultora("Randstad Argentina")
     assert normalize.publicado_por_consultora("Confidencial", "Importante empresa del rubro busca…")
     assert not normalize.publicado_por_consultora("Andes Logística", "Buscamos jefe de depósito")
+
+
+# --- Vocabulario de IT -------------------------------------------------------
+#
+# IT es el rubro con más volumen de búsquedas en Argentina y el que más mezcla
+# español e inglés en el mismo aviso. Cada par que no colapsa a la misma clave
+# es un reposteo invisible, y el reposteo es la señal más fuerte del producto.
+
+
+@pytest.mark.parametrize(
+    "titulo,esperado",
+    [
+        # En IT la jefatura casi nunca dice "jefe": dice "lead".
+        ("Tech Lead Backend", Seniority.JEFATURA),
+        ("Team Lead de Desarrollo", Seniority.JEFATURA),
+        ("Engineering Manager", Seniority.JEFATURA),
+        ("Scrum Master", Seniority.JEFATURA),
+        # Staff y Principal están arriba de Senior, pero son roles individuales.
+        ("Staff Engineer", Seniority.SENIOR),
+        ("Principal Software Engineer", Seniority.SENIOR),
+        ("Arquitecto de Software", Seniority.SENIOR),
+        ("Cybersecurity Specialist", Seniority.SENIOR),
+        ("CTO", Seniority.DIRECCION),
+        ("CISO", Seniority.DIRECCION),
+        ("Co-Founder", Seniority.DIRECCION),
+    ],
+)
+def test_seniority_de_titulos_de_it(titulo, esperado):
+    assert detectar_seniority(titulo) == esperado
+
+
+@pytest.mark.parametrize(
+    "uno,otro",
+    [
+        # El orden de las palabras cambia entre idiomas.
+        ("DevOps Engineer", "Ingeniero DevOps Semi Senior"),
+        ("Site Reliability Engineer", "SRE Senior"),
+        ("Ingeniero de Datos", "Data Engineer Senior"),
+        ("Científico de Datos", "Data Scientist Senior"),
+        ("Product Owner", "Product Manager Sr"),
+        ("Especialista en Ciberseguridad", "Cybersecurity Specialist"),
+        ("Analista QA", "QA Analyst"),
+        ("Desarrollador Backend Java", "Java Backend Developer"),
+        ("Programador Full-Stack Ssr", "Full Stack Developer Semi Senior"),
+    ],
+)
+def test_el_mismo_puesto_de_it_colapsa_a_una_clave(uno, otro):
+    assert normalizar_rol(uno) == normalizar_rol(otro), (
+        f"{uno!r} -> {normalizar_rol(uno)!r} vs {otro!r} -> {normalizar_rol(otro)!r}"
+    )
+
+
+def test_roles_de_it_distintos_no_se_mezclan():
+    """Colapsar de más es tan malo como de menos: inventaría reposteos."""
+    claves = {
+        normalizar_rol(t)
+        for t in ("Data Engineer", "Data Scientist", "DevOps Engineer", "SRE",
+                  "Product Owner", "QA Analyst", "Frontend Developer",
+                  "Backend Developer")
+    }
+    assert len(claves) == 8
