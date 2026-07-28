@@ -170,7 +170,7 @@ talanton/
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            227 tests: dominio, web, accesibilidad, correo, auth, ingesta y enriquecimiento
+tests/            237 tests: dominio, web, accesibilidad, correo, auth, ingesta y enriquecimiento
 docs/             Estrategia, alta de Gmail, LinkedIn/Apify y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```

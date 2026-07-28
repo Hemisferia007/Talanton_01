@@ -87,6 +87,7 @@ def persistir(session: Session, crudas: list[VacanteCruda], fuente: str) -> Resu
             dominio=cruda.empresa_dominio,
             pais=cruda.pais,
             industria=cruda.empresa_industria,
+            dotacion_estimada=cruda.empresa_dotacion,
         )
         vacante, es_nueva = upsert_vacante(
             session,

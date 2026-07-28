@@ -239,3 +239,64 @@ def test_la_pantalla_marca_los_dias_aproximados(cliente, session_con_demo):
 
     html = cliente.get("/avisos").text
     assert f"~{vacante.dias_abierta} días" in html
+
+
+# --- Datos de empresa (scrapeCompany: true) ----------------------------------
+
+
+@pytest.mark.parametrize(
+    "valor,esperado",
+    [
+        ("1.001-5.000 empleados", 1001),   # de un rango, el extremo afirmable
+        ("51-200 employees", 51),
+        (240, 240),
+        ("240", 240),
+        ("11-50", 11),
+        (None, None),
+        ("sin datos", None),
+    ],
+)
+def test_interpreta_la_dotacion(valor, esperado):
+    assert apify._numero(valor) == esperado
+
+
+def test_toma_dotacion_e_industria_cuando_el_actor_las_trae():
+    """scrapeCompany:true las incluye; alimentan a quién apuntar y el score."""
+    v = apify.mapear({
+        "title": "Jefe de Planta",
+        "companyName": "Cerámica Litoral",
+        "location": "Paraná, Argentina",
+        "employeeCount": "201-500 empleados",
+        "companyIndustry": "Manufactura",
+        "companyWebsite": "https://ceramicalitoral.com.ar",
+    })
+    assert v.empresa_dotacion == 201
+    assert v.empresa_industria == "Manufactura"
+    assert v.empresa_dominio == "ceramicalitoral.com.ar"
+
+
+def test_sin_datos_de_empresa_no_inventa_nada():
+    v = apify.mapear({"title": "Jefe", "companyName": "Demo"})
+    assert v.empresa_dotacion is None
+    assert v.empresa_industria is None
+
+
+def test_la_dotacion_llega_hasta_la_empresa(session):
+    """Es lo que decide a qué cargo apuntar en la ficha del lead."""
+    from talanton.enriquecer import objetivo_para
+    from talanton.ingest.runner import persistir
+
+    crudas = [apify.mapear({
+        "title": "Jefe de Planta",
+        "companyName": "Cerámica Litoral",
+        "location": "Paraná, Argentina",
+        "employeeCount": "201-500 empleados",
+    })]
+    persistir(session, crudas, "linkedin")
+    session.commit()
+
+    from talanton.models import Empresa
+
+    empresa = session.query(Empresa).filter_by(nombre="Cerámica Litoral").one()
+    assert empresa.dotacion_estimada == 201
+    assert objetivo_para(empresa).cargo_principal == "Gerente de RRHH"

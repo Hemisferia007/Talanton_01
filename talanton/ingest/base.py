@@ -42,6 +42,9 @@ class VacanteCruda:
     # Datos firmográficos que la fuente pueda traer gratis.
     empresa_dominio: str | None = None
     empresa_industria: str | None = None
+    # La dotación decide a qué cargo apuntar y pesa en capacidad de pago, así
+    # que cuando la fuente la trae vale mucho más que estimarla después.
+    empresa_dotacion: int | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
 

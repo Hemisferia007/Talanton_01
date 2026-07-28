@@ -79,8 +79,40 @@ de entrada del actor, más dos campos propios:
 - El resto son los parámetros del actor, **tal cual los documenta su página**. Cambian
   de actor en actor: por eso se guardan como JSON libre en vez de un formulario fijo.
 
+### La URL de búsqueda es lo que más importa
+
+El actor recibe URLs de búsqueda de LinkedIn. Una URL sin filtros
+(`/jobs/search/?position=1&pageNum=0`) devuelve avisos de todo el mundo, sin relación
+con lo que buscás: se paga igual y no sirve para nada.
+
+Armala en LinkedIn: hacé la búsqueda a mano, con los filtros puestos, y copiá la URL de
+la barra del navegador. Los parámetros que importan:
+
+| Parámetro | Para qué |
+|---|---|
+| `keywords=` | El puesto. `jefe%20de%20mantenimiento` |
+| `location=Argentina` | Dónde |
+| `f_TPR=r604800` | Publicados en los últimos 7 días |
+| `sortBy=DD` | Más recientes primero |
+
+Con `f_TPR` acotado a la última semana, cada corrida trae poco y barato: lo que ya
+viste está en la base, y `primera_vez_vista` sigue contando los días igual.
+
 **Poné siempre un tope de resultados** (`rows`, `maxItems` o como lo llame el actor).
 Apify cobra por uso y un actor sin límite puede correr durante horas.
+
+### `scrapeCompany: true` conviene dejarlo prendido
+
+Suma los datos de la empresa al resultado: cantidad de empleados, industria y sitio
+web. Los tres se usan:
+
+- La **dotación** decide a qué cargo apuntar (en una PyME el dueño, en una de 500 el
+  líder de selección) y pesa en el eje de capacidad de pago del score.
+- El **sitio web** es la clave de deduplicación preferida: evita que la misma empresa
+  entre dos veces con nombres distintos.
+
+Sale un poco más caro por resultado, pero es información que de otro modo hay que
+buscar a mano empresa por empresa.
 
 ## Sobre la precisión de las fechas
 

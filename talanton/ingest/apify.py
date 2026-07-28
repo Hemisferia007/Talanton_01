@@ -100,9 +100,30 @@ _CLAVES = {
     "publicado": ("postedAt", "publishedAt", "postedTime", "listedAt",
                   "postedDate", "datePosted", "publishedDate"),
     "id": ("id", "jobId", "jobPostingId", "trackingId"),
-    "empresa_url": ("companyUrl", "companyLinkedinUrl", "companyWebsite"),
+    "empresa_url": ("companyWebsite", "companyUrl", "companyLinkedinUrl"),
     "modalidad": ("employmentType", "contractType", "workplaceType", "jobType"),
+    # Con `scrapeCompany: true` varios actores suman datos de la empresa. La
+    # dotación decide a qué cargo apuntar y pesa en capacidad de pago, así que
+    # cuando viene gratis vale mucho más que estimarla después.
+    "dotacion": ("employeeCount", "companySize", "staffCount", "employeesCount"),
+    "industria": ("companyIndustry", "industry", "industries", "sector"),
 }
+
+
+def _numero(texto: str | None) -> int | None:
+    """Saca la dotación de «1.001-5.000 empleados» o de un número suelto.
+
+    Con un rango se toma el extremo inferior: es el dato que se puede afirmar.
+    """
+    if not texto:
+        return None
+    numeros = re.findall(r"\d[\d.,]*", str(texto))
+    if not numeros:
+        return None
+    try:
+        return int(numeros[0].replace(".", "").replace(",", ""))
+    except ValueError:
+        return None
 
 
 def _primero(item: dict, campo: str) -> str | None:
@@ -160,6 +181,8 @@ def mapear(item: dict, fuente: str = "linkedin", pais_por_defecto: str | None = 
         descripcion=(_primero(item, "descripcion") or "")[:4000] or None,
         fecha_publicacion=publicado,
         fecha_aproximada=aproximada,
+        empresa_industria=_primero(item, "industria"),
+        empresa_dotacion=_numero(_primero(item, "dotacion")),
     )
 
 
