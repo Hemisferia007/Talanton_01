@@ -305,3 +305,45 @@ def test_la_pantalla_deja_vigilando(cliente, session_con_demo):
     assert any(
         o.nombre == "Vigilada SA" for o in fuentes_db.listar_objetivos(session_con_demo)
     )
+
+
+# --- Pegar la tabla de la pantalla -------------------------------------------
+#
+# Es lo que queda cuando el plan no permite exportar CSV: seleccionar la tabla
+# en la web de la herramienta y copiarla. Trae una columna de casilla vacía
+# adelante y placeholders donde el mail no se desbloqueó.
+
+PEGADO_PANTALLA = (
+    "\tName\tTitle\tCompany\tEmail\tContact Location\t# Employees\tIndustry\n"
+    "\tMarina Quiroga\tGerente de RRHH\tAndes Logística\tAccess email\t"
+    "Mendoza, Argentina\t180\tlogistics\n"
+    "\tSergio Almada\tDirector General\tCerámica Litoral\t"
+    "salmada@ceramlitoral.com.ar\tParaná, Argentina\t420\tbuilding materials\n"
+)
+
+
+def test_la_columna_de_casilla_no_corre_las_demas():
+    """Un `.strip()` común se comía el tabulador inicial de la primera fila y
+    dejaba el encabezado corrido respecto de los datos: la importación entraba
+    entera con las columnas cambiadas y sin ningún error visible."""
+    filas = importar.analizar(PEGADO_PANTALLA).filas
+
+    assert [f.empresa for f in filas] == ["Andes Logística", "Cerámica Litoral"]
+    assert filas[0].contacto == "Marina Quiroga"
+    assert filas[0].cargo == "Gerente de RRHH"
+    assert filas[0].dotacion == 180
+
+
+def test_un_mail_sin_desbloquear_no_se_reporta_como_error():
+    """«Access email» no es un dato roto, es un dato que no está. Avisarlo fila
+    por fila serían treinta advertencias idénticas tapando las que importan."""
+    resultado = importar.analizar(PEGADO_PANTALLA)
+
+    assert resultado.ignoradas == []
+    assert resultado.filas[0].email is None
+    assert resultado.filas[1].email == "salmada@ceramlitoral.com.ar"
+
+
+def test_un_email_realmente_mal_cargado_si_se_avisa():
+    resultado = importar.analizar("Empresa,Email\nAcme,juan punto perez")
+    assert any("no es un email válido" in x for x in resultado.ignoradas)

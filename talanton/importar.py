@@ -161,6 +161,27 @@ def _detectar_separador(texto: str) -> str:
     return ","
 
 
+# Lo que ponen las herramientas de prospección en la celda del mail cuando
+# todavía no lo pagaste. No son datos rotos: son datos que no están.
+_TAPADOS_CONTIENE = (
+    "access email", "email_not_unlocked", "acceder al email", "locked",
+    "no disponible", "not available",
+)
+# Estos van por igualdad exacta, no por contenido: un guion suelto es un
+# marcador de vacío, pero «no-es-un-email» sí es un dato mal cargado y merece
+# su aviso.
+_TAPADOS_EXACTOS = ("-", "--", "—", "n/a", "na", "sin email", "sin datos")
+
+
+def _es_tapado(valor: str) -> bool:
+    limpio = valor.strip().lower()
+    if not limpio:
+        return True
+    if limpio in _TAPADOS_EXACTOS:
+        return True
+    return any(marca in limpio for marca in _TAPADOS_CONTIENE)
+
+
 def _entero(valor: str | None) -> int | None:
     if not valor:
         return None
@@ -183,8 +204,13 @@ def analizar(texto: str) -> Resultado:
     estaban corridas.
     """
     resultado = Resultado()
-    texto = (texto or "").strip()
-    if not texto:
+    # Sólo saltos de línea: un `.strip()` común se come el tabulador inicial de
+    # la primera fila, y eso pasa siempre que se copia una tabla con columna de
+    # casilla de selección —la de Apollo, la de cualquier CRM—. El encabezado
+    # queda corrido una columna respecto de los datos y la importación entra
+    # entera con las columnas cambiadas, sin ningún error visible.
+    texto = (texto or "").strip("\r\n")
+    if not texto.strip():
         return resultado
 
     lector = csv.reader(io.StringIO(texto), delimiter=_detectar_separador(texto))
@@ -220,7 +246,12 @@ def analizar(texto: str) -> Resultado:
             continue
 
         email = (celda("email") or "").lower() or None
-        if email and "@" not in email:
+        if email and _es_tapado(email):
+            # La celda dice «Access email» o similar: no es un dato mal cargado,
+            # es un mail que no se desbloqueó. Avisar fila por fila serían treinta
+            # advertencias idénticas que tapan las que sí importan.
+            email = None
+        elif email and "@" not in email:
             # Un email inválido se descarta pero la empresa se importa igual.
             resultado.ignoradas.append(f"Fila {numero}: «{email}» no es un email válido")
             email = None

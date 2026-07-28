@@ -54,14 +54,26 @@ propia empresa (`python -m talanton.cli enriquecer`).
 **La API de Apollo es de plan pago.** Con una cuenta gratuita la key existe pero
 los endpoints devuelven 403, y eso no se arregla desde acá.
 
-No estás trabado: **exportá desde la web de Apollo y pegá en Importar.** El
-resultado en la base es exactamente el mismo —empresa, contacto marcado como
-decisor, lead en «Nuevo», score calculado—; lo único que cambia es que el paso
-de traer los datos lo hacés vos en vez del servidor.
+El conector de Apollo para Claude **tampoco lo resuelve**: usa la misma API y
+devuelve el mismo error. Es un límite de plan, no de integración.
+
+No estás trabado: **pasás los datos a mano y el resultado en la base es
+idéntico** —empresa, contacto marcado como decisor, lead en «Nuevo», score
+calculado—. Lo único que cambia es quién hace el paso de traerlos.
+
+Ojo con una cosa: el plan gratuito también tiene **0 créditos de exportación**,
+así que el botón Export no va a estar. Lo que sí funciona es **copiar la tabla
+de la pantalla**:
 
 1. En Apollo hacés la búsqueda con los filtros que quieras.
-2. Seleccionás las filas y **Export**.
-3. Abrís el CSV, copiás todo y lo pegás en **Importar**.
+2. Desbloqueás los mails que te interesan (eso sí lo permite el plan gratuito,
+   con tus créditos de lead).
+3. Seleccionás la tabla en pantalla, copiás, y pegás en **Importar**.
+
+Talanton está preparado para ese pegado en particular: la columna de casilla de
+selección que va adelante no corre las demás, y las celdas que dicen
+«Access email» se entienden como un mail que no está —no como un dato roto— así
+que no generan treinta advertencias idénticas.
 
 Talanton reconoce los encabezados de Apollo tal cual vienen, incluidos los tres
 que suelen romper un importador genérico:
