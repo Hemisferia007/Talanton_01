@@ -93,6 +93,7 @@ class Resultado:
     empresas_nuevas: int = 0
     empresas_existentes: int = 0
     contactos_nuevos: int = 0
+    a_vigilar: int = 0
     ignoradas: list[str] = field(default_factory=list)
 
     @property
@@ -250,8 +251,16 @@ def analizar(texto: str) -> Resultado:
     return resultado
 
 
-def importar(session: Session, filas: list[Fila], *, pais: str = "AR") -> Resultado:
-    """Guarda las filas como empresas, contactos y leads."""
+def importar(
+    session: Session, filas: list[Fila], *, pais: str = "AR", vigilar: bool = True
+) -> Resultado:
+    """Guarda las filas como empresas, contactos y leads.
+
+    Con `vigilar`, además las deja como objetivos de la corrida diaria. Es el
+    default porque es la mitad que le falta a una lista comprada: Apollo dice
+    **quién** decide, los avisos dicen **cuándo** conviene escribirle. Sin esto
+    habría que pegar los mismos nombres una segunda vez en la pantalla Fuentes.
+    """
     resultado = Resultado(filas=filas)
     p = perfil(session)
 
@@ -281,8 +290,26 @@ def importar(session: Session, filas: list[Fila], *, pais: str = "AR") -> Result
             lead.proximo_paso = fila.notas[:300]
         recalcular_lead(session, lead, p)
 
+    if vigilar and filas:
+        resultado.a_vigilar = _dejar_vigiladas(session, filas)
+
     session.commit()
     return resultado
+
+
+def _dejar_vigiladas(session: Session, filas: list[Fila]) -> int:
+    """Anota las empresas como objetivos, para que la corrida diaria las sondee.
+
+    El dominio va cuando lo tenemos: sube muchísimo las chances de que el
+    descubridor le encuentre el board de avisos.
+    """
+    from .ingest import fuentes as fuentes_db
+
+    lineas = "\n".join(
+        f"{f.empresa}, {f.dominio}" if f.dominio else f.empresa for f in filas
+    )
+    nuevos, _ = fuentes_db.agregar_objetivos(session, lineas)
+    return nuevos
 
 
 def _existe(session: Session, fila: Fila) -> bool:

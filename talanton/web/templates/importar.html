@@ -18,6 +18,10 @@
     {{ resultado.empresas_nuevas }} empresa{{ 's' if resultado.empresas_nuevas != 1 }} nueva{{ 's' if resultado.empresas_nuevas != 1 }},
     {{ resultado.empresas_existentes }} que ya estaba{{ 'n' if resultado.empresas_existentes != 1 }},
     {{ resultado.contactos_nuevos }} contacto{{ 's' if resultado.contactos_nuevos != 1 }} cargado{{ 's' if resultado.contactos_nuevos != 1 }}.
+    {% if resultado.a_vigilar %}
+      {{ resultado.a_vigilar }} quedaron en <a href="/fuentes">Fuentes</a> para que la
+      corrida diaria les busque los avisos.
+    {% endif %}
     <a href="/tablero">Ver el tablero</a>
   </p>
 {% endif %}
@@ -38,6 +42,18 @@
             empresa, dominio, contacto, cargo, email, teléfono.
           </p>
         </div>
+        <div class="campo">
+          <label for="vigilar">
+            <input type="checkbox" id="vigilar" name="vigilar" value="1" checked>
+            Vigilar los avisos de estas empresas
+          </label>
+          <p class="ayuda">
+            Quedan como objetivos de la corrida diaria, que les busca el board de
+            avisos. Es la mitad que le falta a una lista: la lista dice a quién
+            escribirle, los avisos dicen cuándo.
+          </p>
+        </div>
+
         <div style="display:flex; gap:var(--s2); align-items:flex-end">
           <div class="filtro">
             <label for="pais">País</label>

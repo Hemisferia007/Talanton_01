@@ -440,6 +440,7 @@ def importar_lista(
     datos: str = Form(...),
     pais: str = Form("AR"),
     accion: str = Form("previsualizar"),
+    vigilar: str | None = Form(None),
     db: Session = Depends(db_dependency),
 ):
     """Previsualiza o importa. Nunca se carga a ciegas: primero se muestra cómo
@@ -473,7 +474,9 @@ def importar_lista(
             ),
         )
 
-    resultado = mod_importar.importar(db, analisis.filas, pais=pais)
+    resultado = mod_importar.importar(
+        db, analisis.filas, pais=pais, vigilar=vigilar == "1"
+    )
     return templates.TemplateResponse(
         request,
         "importar.html",
@@ -609,7 +612,8 @@ async def importar_de_apollo(
 
     try:
         resultado = apollo_busqueda.importar_personas(
-            db, personas, pais=pais, revelar=revelar
+            db, personas, pais=pais, revelar=revelar,
+            vigilar=formulario.get("vigilar") == "1",
         )
     except ErrorApollo as exc:
         return templates.TemplateResponse(

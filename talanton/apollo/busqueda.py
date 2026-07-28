@@ -108,6 +108,7 @@ def importar_personas(
     *,
     pais: str = "AR",
     revelar: bool = True,
+    vigilar: bool = True,
     cliente: Cliente | None = None,
 ) -> ResultadoImportar:
     """Revela los emails que falten y guarda todo como empresas, contactos y leads.
@@ -161,7 +162,9 @@ def importar_personas(
         )
 
     if filas:
-        resultado.importacion = importar(session, filas, pais=pais)
+        # Vigilar por defecto: traer el decisor y no mirar sus avisos deja el
+        # trabajo a mitad de camino.
+        resultado.importacion = importar(session, filas, pais=pais, vigilar=vigilar)
     return resultado
 
 

@@ -14,6 +14,9 @@ Por eso el sistema empieza a correr antes de estar terminado.
 
 Estrategia completa, señales y roadmap: [`docs/estrategia-leads.md`](docs/estrategia-leads.md).
 
+¿Recién arrancás? De cero a la primera tanda de mails, sin consola:
+[`docs/primera-busqueda.md`](docs/primera-busqueda.md).
+
 ## Arranque rápido
 
 ```bash
@@ -209,8 +212,8 @@ talanton/
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            364 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
-docs/             Estrategia, alta de Gmail, LinkedIn/Apify, Apollo, asistente y despliegue
+tests/            368 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
+docs/             Primera búsqueda, estrategia, Gmail, LinkedIn/Apify, Apollo, asistente y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```
 

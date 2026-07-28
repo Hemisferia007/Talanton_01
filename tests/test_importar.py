@@ -250,3 +250,58 @@ def test_el_linkedin_queda_como_procedencia(session):
 def test_sin_columna_de_linkedin_la_procedencia_sigue_siendo_manual():
     fila = importar.analizar("Empresa,Contacto\nAcme,Juan Pérez").filas[0]
     assert fila.procedencia == "importado a mano"
+
+
+# --- Vigilancia --------------------------------------------------------------
+
+
+def test_importar_deja_las_empresas_vigiladas(session):
+    """Traer el contacto y no mirar sus avisos deja el trabajo por la mitad:
+    la lista dice a quién escribirle, los avisos dicen cuándo."""
+    from talanton.ingest import fuentes as fuentes_db
+
+    filas = importar.analizar(
+        "Empresa,Dominio\nAndes Logística,andeslog.com.ar\nCerámica Litoral,ceramlitoral.com.ar"
+    ).filas
+    resultado = importar.importar(session, filas)
+
+    assert resultado.a_vigilar == 2
+    objetivos = {o.nombre: o for o in fuentes_db.listar_objetivos(session)}
+    assert set(objetivos) == {"Andes Logística", "Cerámica Litoral"}
+    # El dominio sube mucho las chances de que el sondeo encuentre el board.
+    assert objetivos["Andes Logística"].dominio == "andeslog.com.ar"
+
+
+def test_se_puede_importar_sin_vigilar(session):
+    from talanton.ingest import fuentes as fuentes_db
+
+    filas = importar.analizar("Empresa\nAndes Logística").filas
+    resultado = importar.importar(session, filas, vigilar=False)
+
+    assert resultado.a_vigilar == 0
+    assert fuentes_db.listar_objetivos(session) == []
+
+
+def test_importar_dos_veces_no_duplica_el_objetivo(session):
+    from talanton.ingest import fuentes as fuentes_db
+
+    filas = importar.analizar("Empresa\nAndes Logística").filas
+    importar.importar(session, filas)
+    segundo = importar.importar(session, importar.analizar("Empresa\nAndes Logística").filas)
+
+    assert segundo.a_vigilar == 0
+    assert len(fuentes_db.listar_objetivos(session)) == 1
+
+
+def test_la_pantalla_deja_vigilando(cliente, session_con_demo):
+    from talanton.ingest import fuentes as fuentes_db
+
+    cliente.post(
+        "/importar",
+        data={"datos": "Empresa,Dominio\nVigilada SA,vigilada.com.ar",
+              "accion": "importar", "pais": "AR", "vigilar": "1"},
+    )
+    session_con_demo.expire_all()
+    assert any(
+        o.nombre == "Vigilada SA" for o in fuentes_db.listar_objetivos(session_con_demo)
+    )
