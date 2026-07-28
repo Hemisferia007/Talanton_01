@@ -50,6 +50,16 @@ def apify_configurado() -> bool:
     return bool(APIFY_TOKEN)
 
 
+# --- Apollo ------------------------------------------------------------------
+# Base de empresas y decisores. Buscar es gratis; revelar un email consume un
+# crédito de la cuenta. Ver docs/apollo.md.
+APOLLO_API_KEY = os.getenv("TALANTON_APOLLO_API_KEY", "")
+
+
+def apollo_configurado() -> bool:
+    return bool(APOLLO_API_KEY)
+
+
 # --- Asistente (Claude) ------------------------------------------------------
 # Lee el lead y opina si conviene contactarlo, y redacta respuestas dentro del
 # hilo. Es opcional: sin clave, la app funciona igual y los botones no aparecen.

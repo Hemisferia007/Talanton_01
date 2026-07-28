@@ -44,6 +44,7 @@ python -m talanton.cli ingestar  # lee fuentes.json
 | **Tablero** | Kanban con drag & drop: Nuevo → Contactado → En conversación → Reunión → Propuesta → Ganado/Perdido |
 | **Leads** | Listado filtrable por estado, país, score y texto, con la señal principal de cada uno |
 | **Avisos** | Todas las vacantes detectadas, ordenadas por días abiertas |
+| **Buscar** | Empresas y decisores desde Apollo, filtrando por cargo, país, industria y tamaño |
 | **Importar** | Pegás cualquier lista (Excel, Apollo, Hunter, contactos viejos) y queda como leads listos |
 | **Señales** | Cola de revisión de rondas de inversión y expansiones detectadas en posts |
 | **Asistente** | Dentro del lead: «¿conviene contactarlo?» y borradores que contestan el hilo |
@@ -99,6 +100,16 @@ No toca el score: el score sale de los cuatro ejes y es lo que el comercial le
 puede explicar al cliente. El asistente lee lo que los ejes no miran —el texto— y
 queda al lado, fechado. Su respuesta más valiosa suele ser *«no conviene»*.
 
+**Buscar decisores** (opcional, requiere cuenta de Apollo — ver
+[`docs/apollo.md`](docs/apollo.md)): filtrás por cargo, país, industria y tamaño y
+traés las empresas con la persona que firma. Buscar es gratis y los emails vienen
+tapados; destaparlos consume créditos y es un botón aparte, para poder ajustar los
+filtros sin gastar.
+
+Apollo dice **quién** decide; los avisos dicen **cuándo** conviene escribirle. Lo que
+rinde es usar los dos: traés las empresas de tu rubro, las dejás en Fuentes, y cuando
+a una se le estira una búsqueda el score la sube sola con el decisor ya cargado.
+
 **Ingesta** en tres carriles, del más barato al más caro:
 
 1. **APIs de ATS** (`talanton/ingest/ats.py`) — Greenhouse, Lever. JSON público, estable,
@@ -117,8 +128,9 @@ consola: cargás el nombre de una empresa y Talanton sondea Greenhouse, Lever, A
 Recruitee y Workable, y si no encuentra board busca JSON-LD en su página de trabajo.
 Lo que queda pendiente lo resuelve la corrida diaria.
 
-`fuentes.json` quedó sólo como semilla del primer arranque, para que un despliegue
-nuevo no empiece completamente en blanco.
+`fuentes.json` quedó sólo como semilla opcional del primer arranque, y se reparte
+**vacío** a propósito: sembrar boards sin verificar deja la corrida diaria en rojo
+desde el día uno, y una alarma que siempre suena deja de ser una alarma.
 
 **Enriquecimiento**: `python -m talanton.cli enriquecer` busca emails en los avisos ya
 cargados, distingue buzones de área (`rrhh@`) de personas, verifica que el dominio
@@ -126,10 +138,16 @@ resuelva, y marca al decisor. En el lead, cuando todavía no hay decisor, la fic
 **qué cargo buscar** según el tamaño de la empresa — en una PyME decide el dueño, en
 una de 500 el líder de selección.
 
-No se compran bases ni se tocan perfiles de personas: los emails salen de lo que la
-empresa publicó para que la contacten por trabajo, con `fuente_url` guardada para poder
-auditarlos y borrarlos a pedido. De LinkedIn se leen **avisos, nunca perfiles** — la
-distinción y sus motivos están en [`docs/linkedin.md`](docs/linkedin.md).
+**Procedencia siempre guardada.** Cada contacto lleva su `fuente_url` —el aviso del
+que salió, el LinkedIn de la persona, o `apollo.io:<id>`— para poder auditarlo y
+borrarlo a pedido. Sin eso, un dato de contacto de un tercero no se puede defender
+bajo la Ley 25.326.
+
+No se compran bases sueltas por CSV: no se sabe de dónde salieron y no hay a quién
+reclamarle. Apollo es distinto —proveedor identificable, con términos de uso y bajas
+procesadas—, y por eso está integrado; el razonamiento completo está en
+[`docs/apollo.md`](docs/apollo.md). De LinkedIn se leen **avisos, nunca perfiles**:
+la distinción y sus motivos están en [`docs/linkedin.md`](docs/linkedin.md).
 
 **Visibilidad de la ingesta**: cada corrida queda registrada, y el panel avisa si la
 última no trajo nada o si fallaron fuentes. Sin eso, una configuración rota se ve
@@ -178,6 +196,7 @@ talanton/
   ingest/         Conectores, corrida diaria y descubridor de fuentes
   enriquecer/     Contactos desde avisos, verificación de dominio y regla de decisor
   correo/         Gmail: OAuth, cifrado de tokens, plantillas y envío
+  apollo/         Búsqueda de empresas y decisores, y su importación
   asistente/      Claude: expediente del lead, «¿conviene?» y redacción del hilo
   importar.py     Pegar una lista y que quede como leads
   auth.py         Hash scrypt, login, sesiones
@@ -185,8 +204,8 @@ talanton/
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            329 tests: dominio, web, accesibilidad, correo, asistente, auth, ingesta y enriquecimiento
-docs/             Estrategia, alta de Gmail, LinkedIn/Apify, asistente y despliegue
+tests/            359 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
+docs/             Estrategia, alta de Gmail, LinkedIn/Apify, Apollo, asistente y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```
 

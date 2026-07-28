@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -18,12 +19,16 @@ from sqlalchemy.orm import Session, selectinload
 from starlette.middleware.sessions import SessionMiddleware
 
 from .. import auth, services
+from ..apollo import busqueda as apollo_busqueda
+from ..apollo import cliente as apollo_cliente
+from ..apollo.cliente import ErrorApollo
 from ..asistente import conviene as ia_conviene
 from ..asistente import escribir as ia_escribir
 from ..asistente.cliente import ErrorAsistente, disponible as asistente_disponible
 from ..config import (
     COOKIES_SEGURAS,
     apify_configurado,
+    apollo_configurado,
     LIMITE_ENVIOS_DIARIOS,
     PAISES,
     PAIS_NOMBRE,
@@ -50,6 +55,8 @@ from ..models import (
     Seniority,
     Usuario,
 )
+
+log_web = logging.getLogger("talanton.web")
 
 COOKIE_ESTADO_OAUTH = "talanton_oauth_state"
 
@@ -471,6 +478,132 @@ def importar_lista(
         "importar.html",
         _contexto(request, previsualizacion=None, resultado=resultado, datos="", error=None),
     )
+
+
+# --- Buscar en Apollo --------------------------------------------------------
+
+
+def _contexto_apollo(request: Request, db: Session, **extra):
+    base = dict(
+        apollo_listo=apollo_configurado(),
+        cargos="\n".join(apollo_busqueda.CARGOS_POR_DEFECTO),
+        pais="AR",
+        dotacion_min="",
+        dotacion_max="",
+        industrias="",
+        resultado=None,
+        importado=None,
+        error=None,
+    )
+    base.update(extra)
+    return _contexto(request, **base)
+
+
+@app.get("/buscar", response_class=HTMLResponse)
+def buscar_form(request: Request, db: Session = Depends(db_dependency)):
+    p = services.perfil(db)
+    return templates.TemplateResponse(
+        request,
+        "buscar.html",
+        _contexto_apollo(
+            request,
+            db,
+            industrias=", ".join(p.industrias),
+            dotacion_min=p.dotacion_min or "",
+            dotacion_max=p.dotacion_max or "",
+        ),
+    )
+
+
+@app.post("/buscar", response_class=HTMLResponse)
+def buscar_en_apollo(
+    request: Request,
+    cargos: str = Form(""),
+    pais: str = Form("AR"),
+    industrias: str = Form(""),
+    dotacion_min: str = Form(""),
+    dotacion_max: str = Form(""),
+    pagina: int = Form(1),
+    db: Session = Depends(db_dependency),
+):
+    """Previsualiza. No consume créditos y los emails vienen tapados."""
+    filtros = apollo_busqueda.Filtros(
+        cargos=[c.strip() for c in cargos.splitlines() if c.strip()],
+        pais=pais,
+        industrias=[i.strip() for i in industrias.split(",") if i.strip()],
+        dotacion_min=_entero_o_none(dotacion_min),
+        dotacion_max=_entero_o_none(dotacion_max),
+        pagina=max(1, pagina),
+    )
+    devolver = dict(
+        cargos=cargos,
+        pais=pais,
+        industrias=industrias,
+        dotacion_min=dotacion_min,
+        dotacion_max=dotacion_max,
+    )
+    try:
+        resultado = apollo_busqueda.buscar(db, filtros)
+    except ErrorApollo as exc:
+        return templates.TemplateResponse(
+            request, "buscar.html", _contexto_apollo(request, db, error=str(exc), **devolver)
+        )
+
+    return templates.TemplateResponse(
+        request,
+        "buscar.html",
+        _contexto_apollo(request, db, resultado=resultado, **devolver),
+    )
+
+
+@app.post("/buscar/importar", response_class=HTMLResponse)
+async def importar_de_apollo(
+    request: Request, db: Session = Depends(db_dependency)
+):
+    """Importa los seleccionados. **Acá sí se gastan créditos**, uno por cada
+    email que haya que destapar.
+
+    Las personas viajan en el formulario en vez de volver a consultarse: repetir
+    la búsqueda podría traer otro orden y terminar importando a otra gente.
+    """
+    formulario = await request.form()
+    pais = str(formulario.get("pais") or "AR")
+    revelar = formulario.get("revelar") == "1"
+    seleccionadas = formulario.getlist("persona")
+
+    personas = []
+    for crudo in seleccionadas:
+        try:
+            personas.append(apollo_cliente.Persona(**json.loads(crudo)))
+        except (ValueError, TypeError) as exc:
+            log_web.warning("Fila de Apollo ilegible: %s", exc)
+
+    if not personas:
+        return templates.TemplateResponse(
+            request,
+            "buscar.html",
+            _contexto_apollo(request, db, error="No seleccionaste ningún contacto."),
+        )
+
+    try:
+        resultado = apollo_busqueda.importar_personas(
+            db, personas, pais=pais, revelar=revelar
+        )
+    except ErrorApollo as exc:
+        return templates.TemplateResponse(
+            request, "buscar.html", _contexto_apollo(request, db, error=str(exc))
+        )
+
+    return templates.TemplateResponse(
+        request, "buscar.html", _contexto_apollo(request, db, importado=resultado)
+    )
+
+
+def _entero_o_none(valor: str) -> int | None:
+    try:
+        return int(str(valor).strip())
+    except (TypeError, ValueError):
+        return None
 
 
 # --- Fuentes -----------------------------------------------------------------

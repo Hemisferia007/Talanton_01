@@ -1,23 +1,18 @@
 {
-  "_comentario": "Fuentes de la corrida diaria. Priorizar ATS y JSON-LD sobre HTML: son más baratas, más estables y traen fecha de publicación real.",
-  "fuentes": [
-    {
-      "tipo": "greenhouse",
-      "board": "mercadolibre",
-      "empresa": "Mercado Libre",
-      "dominio": "mercadolibre.com"
-    },
-    {
-      "tipo": "lever",
-      "board": "ualaar",
-      "empresa": "Ualá",
-      "dominio": "uala.com.ar"
-    },
-    {
-      "tipo": "pagina_carrera",
-      "url": "https://ejemplo.com.ar/trabaja-con-nosotros",
-      "empresa": null,
-      "stealth": false
-    }
-  ]
+  "_comentario": [
+    "Semilla del primer arranque. Se carga en la base una sola vez, cuando la",
+    "tabla de fuentes está vacía; después las fuentes se administran desde la",
+    "pantalla Fuentes, que además sondea Greenhouse, Lever, Ashby, Recruitee y",
+    "Workable a partir del nombre de la empresa.",
+    "",
+    "Va vacío a propósito. Sembrar boards sin verificar hace que la primera",
+    "corrida falle contra URLs que no existen, y un cron rojo desde el día uno",
+    "enseña a ignorar la alarma justo cuando más falta hace que sirva.",
+    "",
+    "Si querés precargar fuentes ya verificadas, el formato es:",
+    "  {\"tipo\": \"greenhouse\", \"board\": \"<slug>\", \"empresa\": \"...\", \"dominio\": \"...\"}",
+    "  {\"tipo\": \"lever\", \"board\": \"<slug>\", \"empresa\": \"...\", \"dominio\": \"...\"}",
+    "  {\"tipo\": \"pagina_carrera\", \"url\": \"https://...\", \"empresa\": null, \"stealth\": false}"
+  ],
+  "fuentes": []
 }

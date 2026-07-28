@@ -102,18 +102,40 @@ def test_solo_se_arman_conectores_de_tipos_conocidos(session):
     assert tipos == {"greenhouse", "lever", "pagina_carrera"}
 
 
-def test_la_semilla_solo_corre_con_la_tabla_vacia(session):
-    cargadas = fuentes_db.sembrar_desde_archivo(session)
+def _semilla(tmp_path, fuentes: list[dict]):
+    import json
+
+    ruta = tmp_path / "fuentes.json"
+    ruta.write_text(json.dumps({"fuentes": fuentes}), encoding="utf-8")
+    return ruta
+
+
+def test_la_semilla_solo_corre_con_la_tabla_vacia(session, tmp_path):
+    ruta = _semilla(tmp_path, [{"tipo": "greenhouse", "board": "acme", "empresa": "Acme"}])
+
+    assert fuentes_db.sembrar_desde_archivo(session, ruta) == 1
     session.commit()
-    assert cargadas > 0
     # Segunda vez no hace nada, para no revivir fuentes borradas a mano.
-    assert fuentes_db.sembrar_desde_archivo(session) == 0
+    assert fuentes_db.sembrar_desde_archivo(session, ruta) == 0
 
 
-def test_la_semilla_descarta_la_url_de_ejemplo(session):
-    fuentes_db.sembrar_desde_archivo(session)
+def test_la_semilla_descarta_la_url_de_ejemplo(session, tmp_path):
+    ruta = _semilla(
+        tmp_path,
+        [
+            {"tipo": "pagina_carrera", "url": "https://ejemplo.com.ar/trabajos"},
+            {"tipo": "greenhouse", "board": "acme", "empresa": "Acme"},
+        ],
+    )
+    fuentes_db.sembrar_desde_archivo(session, ruta)
     session.commit()
     assert not any("ejemplo.com" in f.identificador for f in fuentes_db.listar_fuentes(session))
+
+
+def test_la_semilla_que_se_reparte_va_vacia(session):
+    """Sembrar boards sin verificar deja el cron en rojo desde el día uno, y una
+    alarma que siempre suena deja de ser una alarma."""
+    assert fuentes_db.sembrar_desde_archivo(session) == 0
 
 
 # --- Pantalla ----------------------------------------------------------------

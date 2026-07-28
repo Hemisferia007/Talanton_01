@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block titulo %}Buscar empresas · Talanton{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Buscar empresas y decisores</h1>
+    <p class="subtitulo">
+      Busca en Apollo por cargo, país, industria y tamaño, y trae las empresas con
+      la persona que decide contratar una consultora. Buscar no cuesta créditos;
+      destapar los emails sí, y es un botón aparte.
+    </p>
+  </div>
+</div>
+
+{% if not apollo_listo %}
+  <p class="alerta alerta-aviso" role="status">
+    Falta la clave de Apollo. Cargá <code>TALANTON_APOLLO_API_KEY</code> en las
+    variables del servicio y volvé a entrar. El paso a paso está en
+    <code>docs/apollo.md</code>.
+  </p>
+{% endif %}
+
+{% if error %}<p class="alerta alerta-error" role="alert">{{ error }}</p>{% endif %}
+
+{% if importado %}
+  {% set imp = importado.importacion %}
+  <p class="alerta alerta-ok" role="status">
+    {{ imp.empresas_nuevas }} empresa{{ 's' if imp.empresas_nuevas != 1 }} nueva{{ 's' if imp.empresas_nuevas != 1 }},
+    {{ imp.empresas_existentes }} que ya estaba{{ 'n' if imp.empresas_existentes != 1 }},
+    {{ imp.contactos_nuevos }} contacto{{ 's' if imp.contactos_nuevos != 1 }} cargado{{ 's' if imp.contactos_nuevos != 1 }}.
+    {% if importado.revelados %}
+      Se destaparon {{ importado.revelados }} email{{ 's' if importado.revelados != 1 }}
+      ({{ importado.revelados }} crédito{{ 's' if importado.revelados != 1 }} de Apollo).
+    {% endif %}
+    {% if importado.sin_email %}
+      {{ importado.sin_email }} quedaron sin email: Apollo no lo tenía.
+    {% endif %}
+    <a href="/tablero">Ver el tablero</a>
+  </p>
+  {% if importado.fallidos %}
+  <div class="alerta alerta-aviso">
+    <strong>{{ importado.fallidos|length }} con problemas:</strong>
+    <ul class="mini" style="margin:var(--s2) 0 0; padding-left:var(--s4)">
+      {% for f in importado.fallidos[:10] %}<li>{{ f }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+{% endif %}
+
+<div class="grid-principal">
+  <div class="pila">
+    <section class="panel" aria-labelledby="t-filtros">
+      <h2 id="t-filtros">Filtros</h2>
+      <form method="post" action="/buscar">
+        <div class="campo">
+          <label for="cargos">Cargos a buscar (uno por línea)</label>
+          <textarea id="cargos" name="cargos" rows="8" aria-describedby="ayuda-cargos">{{ cargos }}</textarea>
+          <p class="ayuda" id="ayuda-cargos">
+            No es quien sufre la vacante sino quien firma: en una empresa mediana
+            decide RRHH, en una PyME el dueño. Apollo hace coincidencia aproximada,
+            así que conviene poner las variantes en español y en inglés.
+          </p>
+        </div>
+
+        <div style="display:flex; gap:var(--s3); flex-wrap:wrap">
+          <div class="filtro">
+            <label for="pais">País</label>
+            <select id="pais" name="pais">
+              {% for p in paises %}
+                <option value="{{ p }}" {{ 'selected' if p == pais }}>{{ pais_nombre[p] }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filtro">
+            <label for="dotacion_min">Empleados desde</label>
+            <input type="number" id="dotacion_min" name="dotacion_min" min="1"
+                   value="{{ dotacion_min }}">
+          </div>
+          <div class="filtro">
+            <label for="dotacion_max">Hasta</label>
+            <input type="number" id="dotacion_max" name="dotacion_max" min="1"
+                   value="{{ dotacion_max }}">
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="industrias">Industrias (separadas por coma, opcional)</label>
+          <input type="text" id="industrias" name="industrias" value="{{ industrias }}"
+                 aria-describedby="ayuda-industrias">
+          <p class="ayuda" id="ayuda-industrias">
+            Se precarga con el ICP de <a href="/mi-empresa">Mi empresa</a>. Vacío
+            busca en todas.
+          </p>
+        </div>
+
+        <button class="btn" type="submit" {{ 'disabled' if not apollo_listo }}>Buscar</button>
+      </form>
+    </section>
+
+    {% if resultado %}
+    <section class="panel" aria-labelledby="t-resultados">
+      <h2 id="t-resultados">Resultados</h2>
+      <p class="subtitulo">
+        {{ resultado.personas|length }} en esta página de {{ resultado.total }} que
+        encontró Apollo. Los emails se ven tapados hasta que los destapes.
+      </p>
+
+      {% if resultado.personas %}
+      <form method="post" action="/buscar/importar">
+        <input type="hidden" name="pais" value="{{ pais }}">
+
+        <div class="tabla-envoltorio">
+          <table>
+            <caption class="sr-solo">Personas encontradas en Apollo</caption>
+            <thead>
+              <tr>
+                <th scope="col">Traer</th>
+                <th scope="col">Persona</th>
+                <th scope="col">Empresa</th>
+                <th scope="col">Tamaño</th>
+                <th scope="col">Email</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in resultado.personas %}
+              <tr>
+                <td>
+                  {# Comillas simples a propósito: `tojson` escapa `'` como
+                     ' pero deja las `"` crudas, y el JSON está lleno de
+                     comillas dobles. Con value="…" el atributo se corta en la
+                     primera y la fila viaja mutilada. #}
+                  <input type="checkbox" name="persona" id="p-{{ loop.index }}"
+                         value='{{ p.__dict__ | tojson }}' checked>
+                  <label class="sr-solo" for="p-{{ loop.index }}">
+                    Traer a {{ p.nombre }} de {{ p.empresa or 'empresa desconocida' }}
+                  </label>
+                </td>
+                <td>
+                  <div class="celda-titulo">{{ p.nombre }}</div>
+                  <div class="celda-sub">{{ p.cargo or 'sin cargo' }}</div>
+                </td>
+                <td>
+                  <div class="celda-titulo">{{ p.empresa or '—' }}</div>
+                  <div class="celda-sub">
+                    {{ p.industria or 'sin industria' }}{% if p.ciudad %} · {{ p.ciudad }}{% endif %}
+                  </div>
+                </td>
+                <td>{{ p.dotacion or '—' }}</td>
+                <td>
+                  {% if p.email_visible %}
+                    <span class="mini">{{ p.email }}</span>
+                  {% else %}
+                    <span class="chip tibio">Tapado</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="campo" style="margin-top:var(--s4)">
+          <label for="revelar">
+            <input type="checkbox" id="revelar" name="revelar" value="1" checked>
+            Destapar los emails que falten
+          </label>
+          <p class="ayuda">
+            Cada email destapado <strong>consume un crédito</strong> de tu cuenta de
+            Apollo. Sin esto se importan las empresas y los nombres, y el mail lo
+            buscás por otro lado.
+          </p>
+        </div>
+
+        <button class="btn" type="submit">Traer los seleccionados</button>
+      </form>
+      {% else %}
+        <p class="vacio">
+          Apollo no devolvió nadie con esos filtros. Probá con menos cargos, un
+          rango de empleados más ancho, o sin industria.
+        </p>
+      {% endif %}
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="pila">
+    <section class="panel" aria-labelledby="t-como">
+      <h2 id="t-como">Cómo funciona</h2>
+      <ol class="mini" style="padding-left:var(--s4); line-height:1.7">
+        <li><strong>Buscar</strong> no cuesta créditos y los emails vienen tapados.
+            Ajustá los filtros todas las veces que haga falta.</li>
+        <li><strong>Traer</strong> destapa sólo los que marcaste. Un crédito por
+            email.</li>
+        <li>Cada empresa entra como lead en «Nuevo», con la persona marcada como
+            decisor y su procedencia guardada.</li>
+        <li>Si la empresa ya estaba, no se duplica: se completan los datos que
+            falten.</li>
+      </ol>
+    </section>
+
+    <section class="panel" aria-labelledby="t-vs">
+      <h2 id="t-vs">Esto no reemplaza a los avisos</h2>
+      <p class="mini">
+        Apollo te dice <em>quién</em> es el decisor de una empresa que encaja con tu
+        cliente ideal. No te dice <em>cuándo</em> esa empresa necesita una consultora.
+      </p>
+      <p class="mini">
+        El momento lo dan los avisos: una búsqueda abierta hace 90 días y ya
+        republicada. Un mail que arranca por ahí se lee; uno que arranca por
+        «somos una consultora líder» no.
+      </p>
+      <p class="mini tenue">
+        Lo mejor de los dos: cargá las empresas desde acá y dejalas en
+        <a href="/fuentes">Fuentes</a> para que la corrida diaria vigile cuándo
+        empiezan a publicar.
+      </p>
+    </section>
+  </div>
+</div>
+{% endblock %}

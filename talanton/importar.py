@@ -57,6 +57,10 @@ class Fila:
     dotacion: int | None = None
     ciudad: str | None = None
     notas: str | None = None
+    # De dónde salió el contacto. Queda guardado en `Contacto.fuente_url` para
+    # poder auditarlo y borrarlo a pedido: sin procedencia, un dato de contacto
+    # de un tercero no se puede defender.
+    procedencia: str = "importado a mano"
 
     @property
     def tiene_contacto(self) -> bool:
@@ -270,7 +274,7 @@ def _agregar_contacto(empresa: Empresa, fila: Fila) -> bool:
             email=fila.email,
             telefono=fila.telefono,
             es_decisor=True,
-            fuente_url="importado a mano",
+            fuente_url=fila.procedencia,
         )
     )
     return True

@@ -107,6 +107,15 @@ TALANTON_OAUTH_REDIRECT_URI=https://<tu-app>.up.railway.app/oauth/google/callbac
 Tiene que coincidir **exactamente** con lo cargado en Google, incluido el `https://` y
 sin barra final. Es el error más común del alta.
 
+### Prender la búsqueda en Apollo (opcional)
+
+```
+TALANTON_APOLLO_API_KEY=…
+```
+
+Con eso aparece la pantalla **Buscar**. Buscar no consume créditos; destapar
+emails sí, y es un botón aparte. Detalle en [`apollo.md`](apollo.md).
+
 ### Prender el asistente (opcional)
 
 Una variable más en el servicio web:

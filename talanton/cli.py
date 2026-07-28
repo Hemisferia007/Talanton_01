@@ -44,8 +44,12 @@ def _ingestar(args) -> int:
         resultados = correr(session)
 
     if not resultados:
-        print("No hay fuentes configuradas. Editá fuentes.json.")
-        return 1
+        # No es un error: un despliegue nuevo todavía no tiene fuentes. Salir
+        # con 1 dejaría el cron en rojo todos los días por algo que sólo se
+        # arregla desde la web, y una alarma que siempre suena no es una alarma.
+        # El panel ya avisa que la ingesta no está trayendo nada.
+        print("No hay fuentes configuradas todavía. Cargalas en la pantalla Fuentes.")
+        return 0
 
     fallidos = 0
     for r in resultados:
