@@ -131,8 +131,15 @@ Score 0-100 compuesto por cuatro ejes, **cada uno con sus razones en texto**:
 
 Reglas determinísticas para lo numérico; LLM sólo para lo que es texto libre
 (clasificar seniority, detectar si el aviso lo publica una consultora, resumir el
-contexto). El LLM no decide el score: aporta features. Un score que el comercial no
-puede explicarle al cliente no se usa.
+contexto). **El LLM no decide el score.** Un score que el comercial no puede
+explicarle al cliente no se usa.
+
+Lo que sí hace el asistente —ya implementado, ver [`asistente.md`](asistente.md)— es
+una lectura **paralela**: entra a la ficha, lee el texto de los avisos y lo que la
+empresa contestó, y dice si conviene contactarla, con sus motivos y sus reparos. Queda
+al lado del score, fechada y con su propia etiqueta, nunca sumada adentro. Son dos
+lecturas distintas de la misma empresa y tienen que verse como tales: si alguna vez se
+contradicen, el que manda es el score.
 
 **Salida por lead:** score + las 3 razones principales + el gancho textual listo
 ("hace 52 días que buscan un Contador Senior en Córdoba, ya lo republicaron una vez").

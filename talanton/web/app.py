@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -17,6 +18,9 @@ from sqlalchemy.orm import Session, selectinload
 from starlette.middleware.sessions import SessionMiddleware
 
 from .. import auth, services
+from ..asistente import conviene as ia_conviene
+from ..asistente import escribir as ia_escribir
+from ..asistente.cliente import ErrorAsistente, disponible as asistente_disponible
 from ..config import (
     COOKIES_SEGURAS,
     apify_configurado,
@@ -291,10 +295,28 @@ def lead_detalle(request: Request, lead_id: int, db: Session = Depends(db_depend
             # esperar una llamada al servidor.
             redaccion=correo.borrador(db, lead, cuenta=cuentas[0] if cuentas else None),
             gmail_listo=gmail_configurado(),
+            asistente_listo=asistente_disponible(),
+            # Una opinión guardada contra un lead que ya cambió es peor que
+            # ninguna: se muestra igual, pero avisada.
+            opinion_vieja=ia_conviene.desactualizada(lead),
             enviado=request.query_params.get("enviado"),
             error_envio=request.query_params.get("error"),
         ),
     )
+
+
+@app.post("/leads/{lead_id}/opinion")
+def pedir_opinion(lead_id: int, db: Session = Depends(db_dependency)):
+    """Le pide al asistente que lea el lead y diga si conviene contactarlo."""
+    lead = _lead_o_404(db, lead_id)
+    try:
+        ia_conviene.evaluar(db, lead)
+        db.commit()
+    except ErrorAsistente as exc:
+        from urllib.parse import quote
+
+        return RedirectResponse(f"/leads/{lead_id}?error={quote(str(exc))}", status_code=303)
+    return RedirectResponse(f"/leads/{lead_id}#t-opinion", status_code=303)
 
 
 @app.post("/leads/{lead_id}/nota")
@@ -777,6 +799,27 @@ def redactar(
             "cuerpo": datos["cuerpo"],
         }
     )
+
+
+@app.post("/leads/{lead_id}/redactar-ia")
+async def redactar_con_asistente(
+    lead_id: int, request: Request, db: Session = Depends(db_dependency)
+):
+    """Borrador escrito por el asistente leyendo el hilo entero.
+
+    Devuelve JSON y no guarda nada: cae en la ventana de redacción para que se
+    edite y se mande —o no— como cualquier otro borrador.
+    """
+    lead = _lead_o_404(db, lead_id)
+    crudo = await request.body()
+    # El campo de instrucción es opcional, así que el cuerpo también.
+    datos = json.loads(crudo) if crudo.strip() else {}
+    try:
+        return JSONResponse(
+            ia_escribir.borrador(db, lead, instruccion=(datos or {}).get("instruccion"))
+        )
+    except ErrorAsistente as exc:
+        return JSONResponse({"error": str(exc)}, status_code=502)
 
 
 @app.post("/leads/{lead_id}/enviar")

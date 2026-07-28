@@ -45,6 +45,24 @@
         </p>
       </div>
 
+      {% if asistente_listo %}
+      {# Las plantillas resuelven el primer mail; esto es para contestar lo que
+         la empresa escribió, que ninguna plantilla puede hacer. #}
+      <details class="campo" id="campo-ia">
+        <summary>Que lo escriba el asistente leyendo el hilo</summary>
+        <div class="campo">
+          <label for="m-instruccion">Qué querés decirle (opcional)</label>
+          <input type="text" id="m-instruccion"
+                 placeholder="Ej: proponerle una reunión el jueves">
+          <p class="ayuda">
+            Si lo dejás vacío decide solo según el hilo. Lo que escribas acá tiene
+            prioridad sobre su criterio. El borrador queda editable: nunca se manda solo.
+          </p>
+        </div>
+        <button type="button" class="btn btn-fantasma" id="boton-ia">Escribir borrador</button>
+      </details>
+      {% endif %}
+
       <div class="campo">
         <label for="m-asunto">Asunto</label>
         <input type="text" id="m-asunto" name="asunto" value="{{ redaccion.asunto }}" required>

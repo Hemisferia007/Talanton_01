@@ -264,6 +264,11 @@ class Lead(Base):
         cascade="all, delete-orphan",
         order_by="Mensaje.creado_en",
     )
+    # Una sola, la última. Se pisa al volver a pedirla: no es un histórico, es
+    # una lectura de ahora.
+    opinion: Mapped["Opinion | None"] = relationship(
+        back_populates="lead", cascade="all, delete-orphan", uselist=False
+    )
 
     @property
     def lista_razones(self) -> list[str]:
@@ -290,6 +295,79 @@ class Actividad(Base):
     creada_en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
 
     lead: Mapped[Lead] = relationship(back_populates="actividades")
+
+
+class Veredicto(str, enum.Enum):
+    """Qué recomienda hacer el asistente con un lead."""
+
+    CONTACTAR = "contactar"
+    ESPERAR = "esperar"
+    DESCARTAR = "descartar"
+
+    @property
+    def etiqueta(self) -> str:
+        return {
+            Veredicto.CONTACTAR: "Conviene contactarlo",
+            Veredicto.ESPERAR: "Todavía no",
+            Veredicto.DESCARTAR: "No conviene",
+        }[self]
+
+    @property
+    def clase(self) -> str:
+        """Clase del chip. El texto ya dice el estado; el color acompaña."""
+        # «No conviene» va en gris, no en rojo: no es un error del sistema, es
+        # un lead que se archiva.
+        return {
+            Veredicto.CONTACTAR: "ok",
+            Veredicto.ESPERAR: "tibio",
+            Veredicto.DESCARTAR: "cerrada",
+        }[self]
+
+
+class Opinion(Base):
+    """Lo que el asistente leyó de un lead.
+
+    Deliberadamente **no toca el score**: el score es determinístico y el
+    comercial tiene que poder explicárselo al cliente. Esto es otra cosa —lee el
+    texto del aviso y lo que contestó la empresa, que es justo lo que los cuatro
+    ejes no miran— y queda al lado, con su fecha, para que se vea que son dos
+    lecturas distintas y no una sola con más decimales.
+
+    Se guarda `firma_contexto`: si el lead cambió desde que se pidió la opinión,
+    la pantalla lo avisa en vez de mostrar una lectura vieja como si fuera de hoy.
+    """
+
+    __tablename__ = "opiniones"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    lead_id: Mapped[int] = mapped_column(
+        ForeignKey("leads.id"), unique=True, index=True
+    )
+
+    veredicto: Mapped[Veredicto] = mapped_column(Enum(Veredicto), index=True)
+    # "alta" | "media" | "baja". Importa tanto como el veredicto: una lectura
+    # con poca información tiene que decirlo, no redondear para arriba.
+    confianza: Mapped[str] = mapped_column(String(20), default="media")
+
+    # Una por línea, como `Lead.razones`.
+    motivos: Mapped[str] = mapped_column(Text, default="")
+    reparos: Mapped[str] = mapped_column(Text, default="")
+    que_decir: Mapped[str | None] = mapped_column(Text)
+    a_quien: Mapped[str | None] = mapped_column(String(200))
+
+    modelo: Mapped[str] = mapped_column(String(60), default="")
+    firma_contexto: Mapped[str] = mapped_column(String(40), default="")
+    creada_en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
+
+    lead: Mapped[Lead] = relationship(back_populates="opinion")
+
+    @property
+    def lista_motivos(self) -> list[str]:
+        return [x for x in (self.motivos or "").splitlines() if x.strip()]
+
+    @property
+    def lista_reparos(self) -> list[str]:
+        return [x for x in (self.reparos or "").splitlines() if x.strip()]
 
 
 class Usuario(Base):

@@ -107,6 +107,24 @@ TALANTON_OAUTH_REDIRECT_URI=https://<tu-app>.up.railway.app/oauth/google/callbac
 Tiene que coincidir **exactamente** con lo cargado en Google, incluido el `https://` y
 sin barra final. Es el error más común del alta.
 
+### Prender el asistente (opcional)
+
+Una variable más en el servicio web:
+
+```
+TALANTON_ANTHROPIC_API_KEY=sk-ant-…
+```
+
+Con eso aparece el panel «¿Conviene contactarlo?» dentro de cada lead y el botón
+de redacción asistida en la ventana de mail. Sin la variable, la app anda igual y
+los botones no se muestran.
+
+Se paga por uso, no por mes: cada lectura de un lead son unos centavos. El detalle
+—qué datos salen de Talanton, cómo bajar el costo y qué hacer si falla— está en
+[`asistente.md`](asistente.md).
+
+El servicio de cron **no la necesita**: la ingesta no usa el asistente.
+
 ### Costo y backups
 
 Con el plan Hobby (US$5/mes de crédito) entra cómodo: la web y el Postgres consumen poco

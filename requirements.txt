@@ -11,6 +11,9 @@ cryptography>=42.0
 alembic>=1.13
 # Driver de Postgres. SQLite alcanza para desarrollo; para desplegar, no.
 psycopg[binary]>=3.1
+# Asistente: lee el lead y redacta respuestas. Sin TALANTON_ANTHROPIC_API_KEY
+# no se usa y la app anda igual.
+anthropic>=0.69
 
 # Capa de adquisición. Opcional para levantar la web y correr los tests;
 # necesaria para la ingesta real (parseo adaptativo y sesiones stealth).

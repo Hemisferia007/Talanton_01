@@ -64,6 +64,37 @@
   }
   if (selCuenta) selCuenta.addEventListener("change", recargarBorrador);
 
+  // --- Borrador escrito por el asistente ---
+  const botonIA = document.getElementById("boton-ia");
+  if (botonIA) {
+    const instruccion = document.getElementById("m-instruccion");
+    botonIA.addEventListener("click", async () => {
+      const leadId = selPlantilla ? selPlantilla.dataset.lead : null;
+      if (!leadId) return;
+      botonIA.disabled = true;
+      avisar("El asistente está leyendo el hilo… puede tardar unos segundos.");
+      try {
+        const r = await fetch(`/leads/${leadId}/redactar-ia`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instruccion: instruccion ? instruccion.value : "" }),
+        });
+        const datos = await r.json();
+        if (!r.ok) throw new Error(datos.error || r.statusText);
+        campoAsunto.value = datos.asunto;
+        campoCuerpo.value = datos.cuerpo;
+        // La lectura es para el comercial, no para el cliente: explica en qué se
+        // apoyó, así se puede juzgar el borrador en vez de confiar en él.
+        avisar("Borrador listo. " + (datos.lectura || "") + " Revisalo antes de mandarlo.");
+        campoCuerpo.focus();
+      } catch (err) {
+        avisar("No se pudo redactar: " + err.message);
+      } finally {
+        botonIA.disabled = false;
+      }
+    });
+  }
+
   dialogo.querySelector("form").addEventListener("submit", () => {
     avisar("Enviando…");
     dialogo.querySelector('button[type="submit"]').disabled = true;

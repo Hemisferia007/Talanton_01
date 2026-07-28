@@ -50,6 +50,22 @@ def apify_configurado() -> bool:
     return bool(APIFY_TOKEN)
 
 
+# --- Asistente (Claude) ------------------------------------------------------
+# Lee el lead y opina si conviene contactarlo, y redacta respuestas dentro del
+# hilo. Es opcional: sin clave, la app funciona igual y los botones no aparecen.
+ANTHROPIC_API_KEY = os.getenv("TALANTON_ANTHROPIC_API_KEY", "") or os.getenv(
+    "ANTHROPIC_API_KEY", ""
+)
+# Cada lectura de un lead cuesta unos centavos. `claude-sonnet-5` sale bastante
+# menos y alcanza para leads simples; para decidir si vale la pena una búsqueda
+# difícil conviene el de arriba. Ver docs/asistente.md.
+ASISTENTE_MODELO = os.getenv("TALANTON_ASISTENTE_MODELO", "claude-opus-5")
+
+
+def asistente_configurado() -> bool:
+    return bool(ANTHROPIC_API_KEY)
+
+
 # --- Sesiones ----------------------------------------------------------------
 # Firma la cookie de sesión. Si cambia, se cierran todas las sesiones abiertas.
 SESSION_SECRET = os.getenv("TALANTON_SESSION_SECRET", "")

@@ -46,6 +46,7 @@ python -m talanton.cli ingestar  # lee fuentes.json
 | **Avisos** | Todas las vacantes detectadas, ordenadas por días abiertas |
 | **Importar** | Pegás cualquier lista (Excel, Apollo, Hunter, contactos viejos) y queda como leads listos |
 | **Señales** | Cola de revisión de rondas de inversión y expansiones detectadas en posts |
+| **Asistente** | Dentro del lead: «¿conviene contactarlo?» y borradores que contestan el hilo |
 | **Fuentes** | Empresas a vigilar y de dónde se leen sus avisos, con el resultado de cada corrida |
 | **Mi empresa** | Datos de la consultora, el ICP que alimenta el eje de *fit*, y las casillas de Gmail conectadas |
 
@@ -87,6 +88,16 @@ en tu nombre, no leer tu casilla). Alta paso a paso en [`docs/gmail.md`](docs/gm
 - Enviar registra la actividad, marca la fecha de contacto y mueve el lead a
   *Contactado*. Registrar una respuesta lo mueve a *En conversación*.
 - Tope diario conservador (40 por cuenta) para no quemar la reputación del dominio.
+
+**Asistente** (opcional, requiere clave de Anthropic — ver [`docs/asistente.md`](docs/asistente.md)):
+dentro de la ficha del lead, un botón que lee el texto de los avisos, lo que la
+empresa contestó y las notas del comercial, y responde **si conviene contactarlo**
+con sus motivos y sus reparos. Y en la ventana de redacción, un borrador que
+contesta lo que la empresa efectivamente dijo, que ninguna plantilla puede hacer.
+
+No toca el score: el score sale de los cuatro ejes y es lo que el comercial le
+puede explicar al cliente. El asistente lee lo que los ejes no miran —el texto— y
+queda al lado, fechado. Su respuesta más valiosa suele ser *«no conviene»*.
 
 **Ingesta** en tres carriles, del más barato al más caro:
 
@@ -167,13 +178,15 @@ talanton/
   ingest/         Conectores, corrida diaria y descubridor de fuentes
   enriquecer/     Contactos desde avisos, verificación de dominio y regla de decisor
   correo/         Gmail: OAuth, cifrado de tokens, plantillas y envío
+  asistente/      Claude: expediente del lead, «¿conviene?» y redacción del hilo
+  importar.py     Pegar una lista y que quede como leads
   auth.py         Hash scrypt, login, sesiones
   web/            FastAPI + templates + kanban + ventana de redacción
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            304 tests: dominio, web, accesibilidad, correo, auth, ingesta y enriquecimiento
-docs/             Estrategia, alta de Gmail, LinkedIn/Apify y despliegue
+tests/            329 tests: dominio, web, accesibilidad, correo, asistente, auth, ingesta y enriquecimiento
+docs/             Estrategia, alta de Gmail, LinkedIn/Apify, asistente y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```
 

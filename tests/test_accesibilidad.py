@@ -120,3 +120,42 @@ def test_la_barra_del_score_esta_oculta_para_lectores(cliente):
     """Es decorativa: el número al lado ya comunica el valor."""
     html = cliente.get("/leads/1").text
     assert '<span class="barra" aria-hidden="true">' in html
+
+
+def test_los_controles_del_asistente_tambien_tienen_nombre(cliente, monkeypatch):
+    """El panel del asistente sólo se renderiza con clave, así que no lo cubren
+    las rutas de arriba. Sus controles pasan por la misma regla."""
+    from datetime import datetime, timedelta, timezone
+
+    from talanton.asistente import cliente as mod_asistente
+    from talanton.correo import cripto
+    from talanton.db import SessionLocal
+    from talanton.models import CuentaGmail
+
+    monkeypatch.setattr(mod_asistente, "ANTHROPIC_API_KEY", "clave-de-prueba")
+    with SessionLocal() as db:
+        db.add(
+            CuentaGmail(
+                email="a11y@talanton.com.ar",
+                refresh_token_cifrado=cripto.cifrar("x"),
+                access_token="t",
+                access_token_expira=datetime.now(timezone.utc).replace(tzinfo=None)
+                + timedelta(hours=1),
+            )
+        )
+        db.commit()
+
+    html = cliente.get("/leads/1").text
+    assert 'id="t-opinion"' in html and 'id="m-instruccion"' in html
+
+    r = _parsear(html)
+    sin_nombre = [
+        a
+        for _, a in r.controles
+        if not a.get("aria-label")
+        and not a.get("aria-labelledby")
+        and a.get("id") not in r.labels_for
+    ]
+    assert not sin_nombre, f"controles sin label → {sin_nombre}"
+    # El estado de la lectura tiene que anunciarse: tarda varios segundos.
+    assert 'id="estado-opinion" role="status"' in html

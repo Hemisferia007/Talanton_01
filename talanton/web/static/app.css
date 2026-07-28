@@ -332,6 +332,22 @@ label { display: block; font-size: var(--t-xs); color: var(--n-600); font-weight
   color: var(--acento); margin-bottom: var(--s1);
 }
 
+/* --- Opinión del asistente --- */
+/* Título del panel con su acción a la derecha, sin que el botón empuje el h2. */
+.encabezado-panel {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap; margin-bottom: var(--s2);
+}
+.encabezado-panel h2 { margin: 0; }
+.encabezado-panel form { margin: 0; }
+.mini-titulo {
+  font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .05em;
+  color: var(--n-600); margin: var(--s4) 0 var(--s1);
+}
+/* Mientras el asistente lee, el botón queda deshabilitado (.btn[disabled] ya lo
+   pinta) y el texto de al lado —que es role="status"— cuenta lo que pasa. */
+#estado-opinion:empty { display: none; }
+
 /* --- Avisos de estado --- */
 .aviso { font-size: var(--t-xs); }
 .aviso:empty { visibility: hidden; }

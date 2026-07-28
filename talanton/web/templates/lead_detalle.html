@@ -40,6 +40,71 @@
 <div class="detalle">
   <div class="pila">
 
+    {% if asistente_listo %}
+    <section class="panel" aria-labelledby="t-opinion" id="t-opinion-panel">
+      <div class="encabezado-panel">
+        <h2 id="t-opinion">¿Conviene contactarlo?</h2>
+        <form method="post" action="/leads/{{ lead.id }}/opinion" id="forma-opinion">
+          <button class="btn btn-fantasma" type="submit" id="boton-opinion">
+            {{ 'Volver a leer el lead' if lead.opinion else 'Que lo lea el asistente' }}
+          </button>
+        </form>
+      </div>
+      <p class="ayuda" id="estado-opinion" role="status" aria-live="polite"></p>
+
+      {% if lead.opinion %}
+        {% set o = lead.opinion %}
+        <p>
+          <span class="chip {{ o.veredicto.clase }}">{{ o.veredicto.etiqueta }}</span>
+          <span class="tenue">· confianza {{ o.confianza }}</span>
+        </p>
+
+        {% if opinion_vieja %}
+          <p class="alerta alerta-aviso" role="status">
+            El lead cambió desde esta lectura —hay avisos, mensajes o etapa distintos—.
+            Volvé a pedirla si vas a decidir con esto.
+          </p>
+        {% endif %}
+
+        {% if o.que_decir %}
+          <div class="gancho-caja">
+            <strong>Por dónde abrir</strong>
+            {{ o.que_decir }}
+          </div>
+        {% endif %}
+
+        <h3 class="mini-titulo">A favor</h3>
+        <ul class="razones">
+          {% for m in o.lista_motivos %}<li>{{ m }}</li>{% endfor %}
+        </ul>
+
+        {% if o.lista_reparos %}
+          <h3 class="mini-titulo">En contra o por confirmar</h3>
+          <ul class="razones">
+            {% for r in o.lista_reparos %}<li>{{ r }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+
+        {% if o.a_quien %}
+          <p class="ayuda"><strong>A quién apuntar:</strong> {{ o.a_quien }}</p>
+        {% endif %}
+
+        <p class="ayuda tenue">
+          Leído por {{ o.modelo }} el
+          <time datetime="{{ o.creada_en.isoformat() }}">{{ o.creada_en.strftime('%d/%m/%Y %H:%M') }}</time>.
+          No modifica el score: el score sale de los cuatro ejes de abajo, que son
+          los que le podés explicar al cliente.
+        </p>
+      {% else %}
+        <p class="vacio">
+          El asistente lee el texto de los avisos y lo que contestó la empresa
+          —justo lo que el score no mira— y dice si vale la pena dedicarle tiempo.
+          Tarda unos segundos y consume crédito de la API.
+        </p>
+      {% endif %}
+    </section>
+    {% endif %}
+
     <section class="panel" aria-labelledby="t-busquedas">
       <h2 id="t-busquedas">Búsquedas detectadas</h2>
       {% if vacantes %}
@@ -270,4 +335,5 @@
 
 {% block scripts %}
 {% if cuentas %}<script src="/static/redactar.js"></script>{% endif %}
+{% if asistente_listo %}<script src="/static/asistente.js"></script>{% endif %}
 {% endblock %}
