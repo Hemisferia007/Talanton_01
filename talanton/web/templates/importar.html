@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block titulo %}Importar · Talanton{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Importar una lista</h1>
+    <p class="subtitulo">
+      Pegá cualquier lista que ya tengas —un Excel de clientes viejos, contactos de
+      una feria, una exportación de Apollo o Hunter— y queda cargada como leads
+      listos para trabajar en el tablero.
+    </p>
+  </div>
+</div>
+
+{% if resultado %}
+  <p class="alerta alerta-ok" role="status">
+    {{ resultado.empresas_nuevas }} empresa{{ 's' if resultado.empresas_nuevas != 1 }} nueva{{ 's' if resultado.empresas_nuevas != 1 }},
+    {{ resultado.empresas_existentes }} que ya estaba{{ 'n' if resultado.empresas_existentes != 1 }},
+    {{ resultado.contactos_nuevos }} contacto{{ 's' if resultado.contactos_nuevos != 1 }} cargado{{ 's' if resultado.contactos_nuevos != 1 }}.
+    <a href="/tablero">Ver el tablero</a>
+  </p>
+{% endif %}
+
+{% if error %}<p class="alerta alerta-error" role="alert">{{ error }}</p>{% endif %}
+
+<div class="grid-principal">
+  <div class="pila">
+    <section class="panel" aria-labelledby="t-pegar">
+      <h2 id="t-pegar">Pegá la lista</h2>
+      <form method="post" action="/importar">
+        <div class="campo">
+          <label for="datos">Datos (copiá y pegá directo desde Excel o Google Sheets)</label>
+          <textarea id="datos" name="datos" rows="14" required
+                    aria-describedby="ayuda-datos">{{ datos or '' }}</textarea>
+          <p class="ayuda" id="ayuda-datos">
+            Con encabezados o sin ellos. Si no hay encabezados se asume el orden:
+            empresa, dominio, contacto, cargo, email, teléfono.
+          </p>
+        </div>
+        <div style="display:flex; gap:var(--s2); align-items:flex-end">
+          <div class="filtro">
+            <label for="pais">País</label>
+            <select id="pais" name="pais">
+              {% for p in paises %}
+                <option value="{{ p }}" {{ 'selected' if p == 'AR' }}>{{ pais_nombre[p] }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button class="btn btn-fantasma" type="submit" name="accion" value="previsualizar">
+            Previsualizar
+          </button>
+          {% if previsualizacion and previsualizacion.filas %}
+            <button class="btn" type="submit" name="accion" value="importar">
+              Importar {{ previsualizacion.total }} fila{{ 's' if previsualizacion.total != 1 }}
+            </button>
+          {% endif %}
+        </div>
+      </form>
+    </section>
+
+    {% if previsualizacion %}
+    <section class="panel" aria-labelledby="t-preview">
+      <h2 id="t-preview">Previsualización</h2>
+      <p class="subtitulo">
+        {{ previsualizacion.total }} fila{{ 's' if previsualizacion.total != 1 }} reconocida{{ 's' if previsualizacion.total != 1 }}.
+        Revisá que las columnas hayan caído en su lugar antes de importar.
+      </p>
+
+      {% if previsualizacion.filas %}
+      <div class="tabla-envoltorio">
+        <table>
+          <caption class="sr-solo">Filas a importar</caption>
+          <thead>
+            <tr>
+              <th scope="col">Empresa</th>
+              <th scope="col">Dominio</th>
+              <th scope="col">Contacto</th>
+              <th scope="col">Cargo</th>
+              <th scope="col">Email</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in previsualizacion.filas[:25] %}
+            <tr>
+              <td class="celda-titulo">{{ f.empresa }}</td>
+              <td class="mini">{{ f.dominio or '—' }}</td>
+              <td class="mini">{{ f.contacto or '—' }}</td>
+              <td class="mini">{{ f.cargo or '—' }}</td>
+              <td class="mini">{{ f.email or '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if previsualizacion.total > 25 %}
+        <p class="ayuda">Se muestran las primeras 25 de {{ previsualizacion.total }}.</p>
+      {% endif %}
+      {% endif %}
+
+      {% if previsualizacion.ignoradas %}
+      <div class="alerta alerta-aviso" style="margin-top:var(--s4)">
+        <strong>{{ previsualizacion.ignoradas|length }} fila(s) con problemas:</strong>
+        <ul class="mini" style="margin:var(--s2) 0 0; padding-left:var(--s4)">
+          {% for aviso in previsualizacion.ignoradas[:10] %}<li>{{ aviso }}</li>{% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="pila">
+    <section class="panel" aria-labelledby="t-formato">
+      <h2 id="t-formato">Formato</h2>
+      <p class="mini">Reconoce encabezados en español e inglés. Por ejemplo:</p>
+      <pre class="mini" style="background:var(--n-50); padding:var(--s3); border-radius:var(--r-sm); overflow-x:auto"><code>Empresa,Dominio,Contacto,Cargo,Email
+Andes Logística,andeslogistica.com.ar,Marina Quiroga,Gerenta de RRHH,mquiroga@andeslogistica.com.ar
+Cerámica Litoral,ceramicalitoral.com.ar,Sergio Almada,Director,salmada@ceramicalitoral.com.ar</code></pre>
+      <p class="ayuda">
+        Columnas opcionales: teléfono, industria, empleados, ciudad, notas. Lo que
+        pongas en notas queda como próximo paso del lead.
+      </p>
+    </section>
+
+    <section class="panel" aria-labelledby="t-que-pasa">
+      <h2 id="t-que-pasa">Qué pasa al importar</h2>
+      <ol class="mini" style="padding-left:var(--s4); line-height:1.7">
+        <li>Cada empresa entra como lead en la columna «Nuevo» del tablero.</li>
+        <li>El contacto que cargues queda marcado como decisor: si lo pusiste a
+            mano, es con quien querés hablar.</li>
+        <li>Con email cargado, ya podés escribirle desde la ficha del lead.</li>
+        <li>Si la empresa ya estaba, no se duplica: se completan los datos que
+            falten.</li>
+      </ol>
+    </section>
+  </div>
+</div>
+{% endblock %}

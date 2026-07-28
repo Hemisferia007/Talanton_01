@@ -392,6 +392,65 @@ def avisos(
     )
 
 
+# --- Importar ----------------------------------------------------------------
+
+
+@app.get("/importar", response_class=HTMLResponse)
+def importar_form(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "importar.html",
+        _contexto(request, previsualizacion=None, resultado=None, error=None, datos=""),
+    )
+
+
+@app.post("/importar", response_class=HTMLResponse)
+def importar_lista(
+    request: Request,
+    datos: str = Form(...),
+    pais: str = Form("AR"),
+    accion: str = Form("previsualizar"),
+    db: Session = Depends(db_dependency),
+):
+    """Previsualiza o importa. Nunca se carga a ciegas: primero se muestra cómo
+    quedaron las columnas, porque una lista mal alineada ensucia toda la base."""
+    from .. import importar as mod_importar
+
+    analisis = mod_importar.analizar(datos)
+    if not analisis.filas:
+        return templates.TemplateResponse(
+            request,
+            "importar.html",
+            _contexto(
+                request,
+                previsualizacion=analisis,
+                resultado=None,
+                datos=datos,
+                error=(
+                    analisis.ignoradas[0]
+                    if analisis.ignoradas
+                    else "No se reconoció ninguna fila."
+                ),
+            ),
+        )
+
+    if accion != "importar":
+        return templates.TemplateResponse(
+            request,
+            "importar.html",
+            _contexto(
+                request, previsualizacion=analisis, resultado=None, datos=datos, error=None
+            ),
+        )
+
+    resultado = mod_importar.importar(db, analisis.filas, pais=pais)
+    return templates.TemplateResponse(
+        request,
+        "importar.html",
+        _contexto(request, previsualizacion=None, resultado=resultado, datos="", error=None),
+    )
+
+
 # --- Fuentes -----------------------------------------------------------------
 
 
