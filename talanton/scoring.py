@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, field
 
-from .models import Empresa, PerfilConsultora, Seniority
+from .models import Empresa, PerfilConsultora, Seniority, TipoEvento
 
 PESOS = {
     "urgencia": 0.40,
@@ -118,6 +118,15 @@ def _urgencia(empresa: Empresa) -> tuple[float, list[str], str | None]:
             f"«{recurrentes[0].titulo}» ya se había buscado antes: problema de rotación"
         )
 
+    # La combinación es lo que vale: plata fresca y búsquedas abiertas al mismo
+    # tiempo significa que están contratando en serio y con presupuesto.
+    rondas = [e for e in empresa.eventos_vigentes if e.tipo == TipoEvento.FINANCIAMIENTO]
+    if rondas and abiertas:
+        puntos += 15
+        razones.append("Levantó una ronda y ya está buscando: contrata en serio")
+        if gancho:
+            gancho += " Vi que además cerraron una ronda hace poco."
+
     return _acotar(puntos), razones, gancho
 
 
@@ -200,6 +209,26 @@ def _accesibilidad(empresa: Empresa) -> tuple[float, list[str]]:
 def _capacidad_pago(empresa: Empresa) -> tuple[float, list[str]]:
     razones: list[str] = []
     puntos = 0.0
+
+    # Una ronda reciente es la mejor evidencia de capacidad de pago que existe:
+    # mucho más directa que inferirla de la dotación. Sólo cuentan los eventos
+    # confirmados a mano — ver ingest/posts.py.
+    rondas = [
+        e for e in empresa.eventos_vigentes if e.tipo == TipoEvento.FINANCIAMIENTO
+    ]
+    if rondas:
+        reciente = min(rondas, key=lambda e: e.dias_desde)
+        puntos += 30
+        razones.append(
+            f"Levantó una ronda hace {reciente.dias_desde} días: presupuesto fresco"
+        )
+
+    expansiones = [
+        e for e in empresa.eventos_vigentes if e.tipo == TipoEvento.EXPANSION
+    ]
+    if expansiones:
+        puntos += 10
+        razones.append("Anunció expansión: suele venir con contrataciones")
 
     dotacion = empresa.dotacion_estimada or 0
     if dotacion >= 500:

@@ -176,6 +176,39 @@
       {% endif %}
     </section>
 
+    <section class="panel" aria-labelledby="t-senales">
+      <h2 id="t-senales">Búsqueda de señales</h2>
+      <p class="subtitulo">
+        Rondas de inversión y expansiones desde posts. Una empresa que levantó plata
+        abre búsquedas en los 3 a 6 meses siguientes: llegar antes es mucho mejor que
+        llegar cuando ya publicó el aviso doce veces.
+      </p>
+
+      {% if not apify_listo %}
+        <p class="vacio">Necesita <code>TALANTON_APIFY_TOKEN</code>.</p>
+      {% else %}
+      <form method="post" action="/fuentes/posts">
+        <div class="campo">
+          <label for="s-nombre">Nombre de la búsqueda</label>
+          <input type="text" id="s-nombre" name="nombre" required
+                 placeholder="Rondas de inversión Argentina">
+        </div>
+        <div class="campo">
+          <label for="s-config">Configuración del actor (JSON)</label>
+          <textarea id="s-config" name="configuracion" rows="8" required
+                    aria-describedby="ayuda-senales"
+                    placeholder='{&#10;  "_actor": "harvestapi/linkedin-post-search",&#10;  "maxPosts": 50,&#10;  "searchQueries": [&#10;    "cerramos nuestra ronda",&#10;    "levantamos una ronda"&#10;  ]&#10;}'></textarea>
+          <p class="ayuda" id="ayuda-senales">
+            Las señales entran a la cola de <a href="/senales">Señales</a> y no pesan en
+            el score hasta que las confirmás: la detección es sobre texto libre y tiene
+            falsos positivos.
+          </p>
+        </div>
+        <button class="btn" type="submit">Agregar búsqueda</button>
+      </form>
+      {% endif %}
+    </section>
+
     <section class="panel" aria-labelledby="t-como">
       <h2 id="t-como">Cómo funciona</h2>
       <ol class="mini" style="padding-left:var(--s4); line-height:1.7">

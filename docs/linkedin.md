@@ -137,3 +137,55 @@ Si el actor empieza a devolver vacío o a fallar:
 
 Las fuentes de ATS y JSON-LD siguen andando igual: por eso el sistema no depende de
 una sola fuente. LinkedIn suma alcance, no lo sostiene.
+
+
+## Señales de financiamiento y expansión
+
+Además de avisos, se pueden buscar **posts**: una empresa que acaba de levantar una
+ronda tiene presupuesto fresco y presión por crecer, y en los tres a seis meses
+siguientes casi siempre abre búsquedas. Llegar ahí es mucho mejor que llegar cuando ya
+publicó el aviso doce veces.
+
+Actor de referencia: `harvestapi/linkedin-post-search` ($2.00 / 1.000 posts, sin cookies).
+
+```json
+{
+  "_actor": "harvestapi/linkedin-post-search",
+  "maxPosts": 50,
+  "postNestedComments": false,
+  "postNestedReactions": false,
+  "scrapeComments": false,
+  "scrapeReactions": false,
+  "searchQueries": [
+    "cerramos nuestra ronda",
+    "levantamos una ronda de inversión",
+    "nueva planta en Argentina"
+  ]
+}
+```
+
+Dejá `scrapeComments` y `scrapeReactions` en `false`: son datos de personas que no
+necesitamos y encarecen la corrida.
+
+### Por qué las señales pasan por revisión
+
+La detección corre sobre texto libre, y LinkedIn está lleno de gente que **ofrece**
+servicios de inversión en vez de haberla recibido. El clasificador descarta el ruido
+más obvio (cursos, webinars, «te ayudo a conseguir una ronda»), pero no es perfecto.
+
+Por eso las señales entran a la pantalla **Señales** sin pesar en el score, y recién
+cuentan cuando alguien las confirma. Mandarle un mail a un cliente felicitándolo por una
+ronda que no existió es peor que no mandárselo.
+
+### Qué pasa al confirmar una señal
+
+- Sube **capacidad de pago**: una ronda reciente es evidencia mucho más directa que
+  inferir el presupuesto de la dotación.
+- Si además tiene **búsquedas abiertas**, sube también urgencia: plata fresca y
+  contratando al mismo tiempo es la mejor combinación posible.
+- El gancho del mail lo menciona.
+- Si la empresa no estaba en la base, se carga como objetivo a vigilar: levantó plata y
+  todavía no publicó nada, que es justo cuando conviene estar mirando.
+
+El efecto caduca a los nueve meses. Una ronda de hace dos años no dice nada sobre lo que
+la empresa necesita hoy.

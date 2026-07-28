@@ -112,6 +112,15 @@ class Empresa(Base):
     lead: Mapped["Lead | None"] = relationship(
         back_populates="empresa", uselist=False, cascade="all, delete-orphan"
     )
+    eventos: Mapped[list["Evento"]] = relationship(
+        back_populates="empresa",
+        cascade="all, delete-orphan",
+        order_by="Evento.fecha.desc()",
+    )
+
+    @property
+    def eventos_vigentes(self) -> list["Evento"]:
+        return [e for e in self.eventos if e.vigente]
 
     @property
     def tamano_etiqueta(self) -> str:
@@ -392,6 +401,76 @@ class Mensaje(Base):
     def fecha(self) -> datetime:
         """La que ordena el hilo: cuándo ocurrió, no cuándo se guardó."""
         return self.enviado_en or self.creado_en
+
+
+class TipoEvento(str, enum.Enum):
+    FINANCIAMIENTO = "financiamiento"
+    EXPANSION = "expansion"
+    CONTRATACION = "contratacion"
+
+    @property
+    def etiqueta(self) -> str:
+        return {
+            "financiamiento": "Ronda de inversión",
+            "expansion": "Expansión",
+            "contratacion": "Anuncio de contratación",
+        }[self.value]
+
+
+class Evento(Base):
+    """Una señal externa fechada sobre una empresa.
+
+    A diferencia de una vacante, no es un estado que se estira sino un hecho
+    puntual: levantaron una ronda, abrieron una planta, anunciaron que suman
+    gente. No tiene «días abiertos»; lo que importa es cuán reciente es.
+
+    Una ronda por sí sola no es un lead: una empresa con plata fresca que
+    todavía no busca a nadie no necesita una consultora de selección. El valor
+    aparece combinado — ronda + búsquedas abiertas es el mejor momento posible,
+    y ronda sin búsquedas significa «vigilala, va a contratar en 60-90 días».
+    """
+
+    __tablename__ = "eventos"
+    __table_args__ = (
+        UniqueConstraint("fuente", "external_id", name="uq_evento_fuente_externa"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    empresa_id: Mapped[int | None] = mapped_column(ForeignKey("empresas.id"), index=True)
+
+    tipo: Mapped[TipoEvento] = mapped_column(Enum(TipoEvento), index=True)
+    titulo: Mapped[str] = mapped_column(String(400))
+    resumen: Mapped[str | None] = mapped_column(Text)
+    empresa_mencionada: Mapped[str | None] = mapped_column(String(200))
+
+    fecha: Mapped[date] = mapped_column(Date, index=True)
+    fecha_aproximada: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    fuente: Mapped[str] = mapped_column(String(60), index=True)
+    fuente_url: Mapped[str | None] = mapped_column(String(600))
+    external_id: Mapped[str] = mapped_column(String(200))
+
+    # La detección sobre texto libre tiene falsos positivos, así que nada pesa
+    # en el score hasta que una persona lo confirma. Fingir precisión acá
+    # significa mandar un mail felicitando por una ronda que no existió.
+    confirmado: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    descartado: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
+
+    empresa: Mapped["Empresa | None"] = relationship(back_populates="eventos")
+
+    @property
+    def dias_desde(self) -> int:
+        return max((ahora().date() - self.fecha).days, 0)
+
+    @property
+    def vigente(self) -> bool:
+        """El efecto de una ronda sobre la contratación dura unos meses."""
+        return self.confirmado and not self.descartado and self.dias_desde <= 270
+
+    @property
+    def pendiente_revision(self) -> bool:
+        return not self.confirmado and not self.descartado
 
 
 class Objetivo(Base):

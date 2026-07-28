@@ -39,6 +39,7 @@ from ..models import (
     CuentaGmail,
     Empresa,
     EstadoLead,
+    Evento,
     Fuente,
     Lead,
     Objetivo,
@@ -479,6 +480,61 @@ def agregar_busqueda(
     return _volver_a_fuentes(
         mensaje=f"Búsqueda «{nombre}» agregada. Corre en la próxima ingesta diaria."
     )
+
+
+@app.post("/fuentes/posts")
+def agregar_busqueda_posts(
+    nombre: str = Form(...),
+    configuracion: str = Form(...),
+    db: Session = Depends(db_dependency),
+):
+    from ..ingest.apify import ErrorApify
+
+    try:
+        nueva = fuentes_db.agregar_busqueda_posts(
+            db, nombre=nombre, configuracion=configuracion
+        )
+    except ErrorApify as exc:
+        return _volver_a_fuentes(error=str(exc))
+
+    db.commit()
+    if not nueva:
+        return _volver_a_fuentes(error="Esa búsqueda ya estaba cargada.")
+    return _volver_a_fuentes(mensaje=f"Búsqueda de señales «{nombre}» agregada.")
+
+
+@app.get("/senales", response_class=HTMLResponse)
+def senales(request: Request, db: Session = Depends(db_dependency)):
+    """Cola de revisión de señales de financiamiento y expansión."""
+    from ..ingest import eventos as eventos_db
+
+    return templates.TemplateResponse(
+        request,
+        "senales.html",
+        _contexto(request, eventos=eventos_db.pendientes(db)),
+    )
+
+
+@app.post("/senales/{evento_id}/confirmar")
+def confirmar_senal(evento_id: int, db: Session = Depends(db_dependency)):
+    from ..ingest import eventos as eventos_db
+
+    evento = db.get(Evento, evento_id)
+    if evento is None:
+        raise HTTPException(status_code=404, detail="Señal no encontrada")
+    eventos_db.confirmar(db, evento)
+    return RedirectResponse("/senales", status_code=303)
+
+
+@app.post("/senales/{evento_id}/descartar")
+def descartar_senal(evento_id: int, db: Session = Depends(db_dependency)):
+    from ..ingest import eventos as eventos_db
+
+    evento = db.get(Evento, evento_id)
+    if evento is None:
+        raise HTTPException(status_code=404, detail="Señal no encontrada")
+    eventos_db.descartar(db, evento)
+    return RedirectResponse("/senales", status_code=303)
 
 
 @app.post("/fuentes/{fuente_id}/alternar")

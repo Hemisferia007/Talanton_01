@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block titulo %}Señales · Talanton{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Señales para revisar</h1>
+    <p class="subtitulo">
+      Rondas de inversión y anuncios de expansión detectados en posts. Se detectan
+      sobre texto libre, así que hay falsos positivos: <strong>nada pesa en el score
+      hasta que lo confirmás acá</strong>.
+    </p>
+  </div>
+</div>
+
+{% if eventos %}
+<div class="panel">
+  <ul class="timeline">
+    {% for e in eventos %}
+    <li>
+      <div style="display:flex; justify-content:space-between; gap:var(--s4); align-items:flex-start">
+        <div style="flex:1">
+          <div class="celda-titulo">
+            {{ e.empresa_mencionada or 'Empresa sin identificar' }}
+            <span class="chip {{ 'ok' if e.tipo.value == 'financiamiento' else '' }}">
+              {{ e.tipo.etiqueta }}
+            </span>
+            {% if e.empresa %}
+              <span class="chip ok" title="Ya está en la base">Lead existente</span>
+            {% endif %}
+          </div>
+          <div class="cuando">
+            {% if e.fecha_aproximada %}~{% endif %}hace {{ e.dias_desde }} días
+            {% if e.fuente_url %}
+              · <a href="{{ e.fuente_url }}" target="_blank" rel="noopener">ver el post</a>
+            {% endif %}
+          </div>
+          <p class="mini" style="margin:var(--s2) 0 0; color:var(--n-600); max-width:80ch">
+            {{ e.resumen[:400] }}{% if e.resumen and e.resumen|length > 400 %}…{% endif %}
+          </p>
+        </div>
+        <div style="display:flex; gap:var(--s2); flex-shrink:0">
+          <form method="post" action="/senales/{{ e.id }}/confirmar">
+            <button class="btn" type="submit">Confirmar</button>
+          </form>
+          <form method="post" action="/senales/{{ e.id }}/descartar">
+            <button class="btn btn-fantasma" type="submit">Descartar</button>
+          </form>
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% else %}
+<div class="panel">
+  <p class="vacio">
+    No hay señales pendientes. Se cargan desde una búsqueda de posts en la pantalla
+    Fuentes, y llegan con la corrida diaria.
+  </p>
+</div>
+{% endif %}
+{% endblock %}

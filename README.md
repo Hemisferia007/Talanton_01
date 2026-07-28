@@ -44,6 +44,7 @@ python -m talanton.cli ingestar  # lee fuentes.json
 | **Tablero** | Kanban con drag & drop: Nuevo → Contactado → En conversación → Reunión → Propuesta → Ganado/Perdido |
 | **Leads** | Listado filtrable por estado, país, score y texto, con la señal principal de cada uno |
 | **Avisos** | Todas las vacantes detectadas, ordenadas por días abiertas |
+| **Señales** | Cola de revisión de rondas de inversión y expansiones detectadas en posts |
 | **Fuentes** | Empresas a vigilar y de dónde se leen sus avisos, con el resultado de cada corrida |
 | **Mi empresa** | Datos de la consultora, el ICP que alimenta el eje de *fit*, y las casillas de Gmail conectadas |
 
@@ -170,7 +171,7 @@ talanton/
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            237 tests: dominio, web, accesibilidad, correo, auth, ingesta y enriquecimiento
+tests/            279 tests: dominio, web, accesibilidad, correo, auth, ingesta y enriquecimiento
 docs/             Estrategia, alta de Gmail, LinkedIn/Apify y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```

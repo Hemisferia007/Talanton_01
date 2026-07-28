@@ -157,6 +157,7 @@ def correr(
         session.commit()
         if resolver:
             resolver_pendientes(session)
+        _correr_busquedas_de_posts(session)
         pares = fuentes_db.conectores_desde_base(session)
     else:
         pares = [(None, c) for c in conectores]
@@ -193,6 +194,34 @@ def correr(
     _cerrar_corrida(session, corrida, resultados, sin_fuentes=not pares)
     session.commit()
     return resultados
+
+
+def _correr_busquedas_de_posts(session: Session) -> int:
+    """Trae señales de financiamiento y expansión. Devuelve cuántas nuevas.
+
+    Van aparte de las vacantes porque producen eventos: hechos fechados, no
+    estados que se estiran. Entran sin confirmar y no mueven el score hasta
+    que alguien las revisa.
+    """
+    from .eventos import persistir_eventos
+
+    nuevos = 0
+    for fuente, buscador in fuentes_db.buscadores_de_posts(session):
+        try:
+            crudos = buscador.fetch_eventos()
+        except Exception as exc:
+            log.error("Falló la búsqueda de posts %s: %s", fuente.empresa, exc)
+            _marcar_fuente(fuente, error=str(exc))
+            continue
+        resumen = persistir_eventos(session, crudos)
+        _marcar_fuente(fuente, avisos=resumen.encontrados)
+        nuevos += resumen.nuevos
+        log.info(
+            "%s: %s señales, %s nuevas, %s vinculadas a empresas conocidas",
+            fuente.empresa, resumen.encontrados, resumen.nuevos, resumen.vinculados,
+        )
+    session.commit()
+    return nuevos
 
 
 def _marcar_fuente(fuente, *, avisos: int | None = None, error: str | None = None) -> None:

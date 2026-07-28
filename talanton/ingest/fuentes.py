@@ -27,7 +27,10 @@ ARCHIVO_SEMILLA = BASE_DIR / "fuentes.json"
 # Tipos que sabemos ingerir hoy. El descubridor puede encontrar más (Ashby,
 # Recruitee, Workable): se guardan igual y quedan inactivos hasta que exista el
 # conector, para no perder el hallazgo.
-TIPOS_CON_CONECTOR = {"greenhouse", "lever", "pagina_carrera", "busqueda_linkedin"}
+TIPOS_CON_CONECTOR = {
+    "greenhouse", "lever", "pagina_carrera",
+    "busqueda_linkedin", "busqueda_posts",
+}
 
 
 # --- Objetivos ---------------------------------------------------------------
@@ -188,6 +191,38 @@ def agregar_busqueda_linkedin(
     )
 
 
+def agregar_busqueda_posts(
+    session: Session, *, nombre: str, configuracion: str
+) -> bool:
+    """Guarda una búsqueda de posts (rondas, expansión) como fuente."""
+    from .posts import desde_configuracion
+
+    desde_configuracion(configuracion, nombre)
+    return _guardar_fuente(
+        session,
+        tipo="busqueda_posts",
+        identificador=configuracion.strip(),
+        empresa=nombre.strip(),
+        dominio=None,
+    )
+
+
+def buscadores_de_posts(session: Session) -> list[tuple[Fuente, object]]:
+    """Las búsquedas de posts van por separado: producen eventos, no vacantes."""
+    from .posts import ErrorApify, desde_configuracion
+
+    pares = []
+    for fuente in listar_fuentes(session, solo_activas=True):
+        if fuente.tipo != "busqueda_posts":
+            continue
+        try:
+            pares.append((fuente, desde_configuracion(fuente.identificador, fuente.empresa)))
+        except ErrorApify as exc:
+            log.warning("Búsqueda de posts %s inválida: %s", fuente.empresa, exc)
+            fuente.ultimo_error = str(exc)
+    return pares
+
+
 def agregar_fuente_manual(
     session: Session, *, tipo: str, identificador: str, empresa: str, dominio: str | None = None
 ) -> bool:
@@ -214,6 +249,8 @@ def conectores_desde_base(session: Session) -> list[tuple[Fuente, Conector]]:
     """Arma los conectores de las fuentes activas que sabemos ingerir."""
     pares: list[tuple[Fuente, Conector]] = []
     for fuente in listar_fuentes(session, solo_activas=True):
+        if fuente.tipo == "busqueda_posts":
+            continue  # produce eventos, no vacantes: ver buscadores_de_posts()
         if fuente.tipo == "greenhouse":
             conector = Greenhouse(fuente.identificador, fuente.empresa, fuente.dominio)
         elif fuente.tipo == "lever":
