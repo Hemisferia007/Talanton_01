@@ -248,6 +248,11 @@ label { display: block; font-size: var(--t-xs); color: var(--n-600); font-weight
 .campo { margin-bottom: var(--s3); }
 .campo label { margin-bottom: var(--s1); }
 .campo input, .campo select { width: 100%; }
+/* El multiple es una lista, no un desplegable: el padding lateral del control
+   simple deja los ítems flotando y los optgroup sin anclar. */
+select[multiple] { padding: var(--s1) 0; }
+select[multiple] option { padding: 3px var(--s3); }
+select[multiple] optgroup { font-weight: 600; padding-top: var(--s1); }
 .ayuda { font-size: var(--t-xs); color: var(--n-600); margin-top: var(--s1); }
 
 .btn {

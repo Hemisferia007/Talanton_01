@@ -24,6 +24,7 @@ from ..importar import Fila, Resultado as ResultadoImportacion, importar
 from ..models import PerfilConsultora
 from ..services import perfil
 from .cliente import Cliente, ErrorApollo, Persona
+from .industrias import traducir_todas
 
 log = logging.getLogger("talanton.apollo")
 
@@ -78,10 +79,14 @@ def buscar(session: Session, filtros: Filtros, cliente: Cliente | None = None):
     """Trae la lista para previsualizar. No consume créditos."""
     cli = cliente or Cliente()
     pais_apollo = _PAIS_APOLLO.get(filtros.pais.upper())
+    # Apollo filtra por palabras clave en inglés y de su propio vocabulario.
+    # Mandarle «Logística» tal cual devuelve cero y parece que no hubiera
+    # empresas de logística en Argentina.
+    industrias = traducir_todas(filtros.industrias)
     return cli.buscar_personas(
         cargos=[c for c in filtros.cargos if c.strip()],
         paises=[pais_apollo] if pais_apollo else None,
-        industrias=filtros.industrias or None,
+        industrias=industrias or None,
         dotacion_min=filtros.dotacion_min,
         dotacion_max=filtros.dotacion_max,
         pagina=filtros.pagina,

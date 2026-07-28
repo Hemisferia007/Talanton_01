@@ -21,6 +21,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from .. import auth, services
 from ..apollo import busqueda as apollo_busqueda
 from ..apollo import cliente as apollo_cliente
+from ..apollo import industrias as apollo_industrias
 from ..apollo.cliente import ErrorApollo
 from ..asistente import conviene as ia_conviene
 from ..asistente import escribir as ia_escribir
@@ -490,10 +491,13 @@ def _contexto_apollo(request: Request, db: Session, **extra):
         pais="AR",
         dotacion_min="",
         dotacion_max="",
-        industrias="",
+        industrias=[],
+        palabras="",
+        grupos_industria=apollo_industrias.agrupadas(),
         resultado=None,
         importado=None,
         error=None,
+        diagnostico=None,
     )
     base.update(extra)
     return _contexto(request, **base)
@@ -508,7 +512,9 @@ def buscar_form(request: Request, db: Session = Depends(db_dependency)):
         _contexto_apollo(
             request,
             db,
-            industrias=", ".join(p.industrias),
+            # El ICP está escrito en castellano; se traduce para que quede
+            # marcado lo que corresponda en la lista.
+            industrias=apollo_industrias.traducir_todas(p.industrias),
             dotacion_min=p.dotacion_min or "",
             dotacion_max=p.dotacion_max or "",
         ),
@@ -516,29 +522,30 @@ def buscar_form(request: Request, db: Session = Depends(db_dependency)):
 
 
 @app.post("/buscar", response_class=HTMLResponse)
-def buscar_en_apollo(
-    request: Request,
-    cargos: str = Form(""),
-    pais: str = Form("AR"),
-    industrias: str = Form(""),
-    dotacion_min: str = Form(""),
-    dotacion_max: str = Form(""),
-    pagina: int = Form(1),
-    db: Session = Depends(db_dependency),
-):
+async def buscar_en_apollo(request: Request, db: Session = Depends(db_dependency)):
     """Previsualiza. No consume créditos y los emails vienen tapados."""
+    formulario = await request.form()
+    cargos = str(formulario.get("cargos") or "")
+    pais = str(formulario.get("pais") or "AR")
+    palabras = str(formulario.get("palabras") or "")
+    dotacion_min = str(formulario.get("dotacion_min") or "")
+    dotacion_max = str(formulario.get("dotacion_max") or "")
+    # El `<select multiple>` manda una entrada por opción elegida.
+    industrias = [str(x) for x in formulario.getlist("industrias") if str(x).strip()]
+
     filtros = apollo_busqueda.Filtros(
         cargos=[c.strip() for c in cargos.splitlines() if c.strip()],
         pais=pais,
-        industrias=[i.strip() for i in industrias.split(",") if i.strip()],
+        industrias=industrias + [p.strip() for p in palabras.split(",") if p.strip()],
         dotacion_min=_entero_o_none(dotacion_min),
         dotacion_max=_entero_o_none(dotacion_max),
-        pagina=max(1, pagina),
+        pagina=max(1, _entero_o_none(formulario.get("pagina")) or 1),
     )
     devolver = dict(
         cargos=cargos,
         pais=pais,
         industrias=industrias,
+        palabras=palabras,
         dotacion_min=dotacion_min,
         dotacion_max=dotacion_max,
     )
@@ -553,6 +560,21 @@ def buscar_en_apollo(
         request,
         "buscar.html",
         _contexto_apollo(request, db, resultado=resultado, **devolver),
+    )
+
+
+@app.post("/buscar/probar", response_class=HTMLResponse)
+def probar_apollo(request: Request, db: Session = Depends(db_dependency)):
+    """Muestra qué contesta Apollo, sin traducir. Para cuando el mensaje de
+    error no alcanza para saber si el problema es la clave o el plan."""
+    try:
+        info = apollo_cliente.Cliente().diagnostico()
+    except ErrorApollo as exc:
+        return templates.TemplateResponse(
+            request, "buscar.html", _contexto_apollo(request, db, error=str(exc))
+        )
+    return templates.TemplateResponse(
+        request, "buscar.html", _contexto_apollo(request, db, diagnostico=info)
     )
 
 

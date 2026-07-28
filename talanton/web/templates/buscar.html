@@ -21,7 +21,18 @@
   </p>
 {% endif %}
 
-{% if error %}<p class="alerta alerta-error" role="alert">{{ error }}</p>{% endif %}
+{% if error %}
+  <p class="alerta alerta-error" role="alert">{{ error }}</p>
+  {# Un error de plan no se arregla desde acá, así que el mensaje tiene que
+     terminar en el camino que sí funciona en vez de dejar a alguien mirando un
+     formulario que nunca va a andar. #}
+  <p class="alerta alerta-aviso" role="status">
+    <strong>Si el problema es el plan, no estás trabado.</strong> Exportá la lista
+    desde la web de Apollo y pegala en <a href="/importar">Importar</a>: entra
+    igual, con el mismo resultado. Talanton reconoce los encabezados de Apollo
+    tal cual vienen.
+  </p>
+{% endif %}
 
 {% if importado %}
   {% set imp = importado.importacion %}
@@ -85,18 +96,85 @@
         </div>
 
         <div class="campo">
-          <label for="industrias">Industrias (separadas por coma, opcional)</label>
-          <input type="text" id="industrias" name="industrias" value="{{ industrias }}"
-                 aria-describedby="ayuda-industrias">
+          <label for="industrias">Industrias (opcional)</label>
+          <select id="industrias" name="industrias" multiple size="12"
+                  aria-describedby="ayuda-industrias">
+            {% for grupo, opciones in grupos_industria %}
+            <optgroup label="{{ grupo }}">
+              {% for valor, etiqueta in opciones %}
+                <option value="{{ valor }}" {{ 'selected' if valor in industrias }}>{{ etiqueta }}</option>
+              {% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
           <p class="ayuda" id="ayuda-industrias">
-            Se precarga con el ICP de <a href="/mi-empresa">Mi empresa</a>. Vacío
-            busca en todas.
+            Elegí una o varias con Ctrl (Cmd en Mac). <strong>Vacío busca en
+            todas</strong>, que al principio suele rendir más: es más fácil
+            descartar mirando la lista que adivinar cómo llama Apollo a tu rubro.
+            Se precarga con el ICP de <a href="/mi-empresa">Mi empresa</a>.
           </p>
         </div>
 
-        <button class="btn" type="submit" {{ 'disabled' if not apollo_listo }}>Buscar</button>
+        <div class="campo">
+          <label for="palabras">Otras palabras clave (opcional)</label>
+          <input type="text" id="palabras" name="palabras" value="{{ palabras }}"
+                 placeholder="fintech, e-commerce" aria-describedby="ayuda-palabras">
+          <p class="ayuda" id="ayuda-palabras">
+            Para lo que no está en la lista. Apollo busca sobre las etiquetas de
+            cada empresa y <strong>entiende inglés</strong>: «fintech» funciona,
+            «tecnología financiera» no.
+          </p>
+        </div>
+
+        <div style="display:flex; gap:var(--s2); align-items:center; flex-wrap:wrap">
+          <button class="btn" type="submit" {{ 'disabled' if not apollo_listo }}>Buscar</button>
+        </div>
       </form>
+
+      {% if apollo_listo %}
+      <form method="post" action="/buscar/probar" style="margin-top:var(--s3)">
+        <button class="btn btn-fantasma" type="submit">Probar la conexión</button>
+        <p class="ayuda">
+          Golpea la API con el pedido más chico posible y muestra qué contesta,
+          sin traducir. Útil cuando el error no deja claro si el problema es la
+          clave o el plan.
+        </p>
+      </form>
+      {% endif %}
     </section>
+
+    {% if diagnostico %}
+    <section class="panel" aria-labelledby="t-diag">
+      <h2 id="t-diag">Prueba de conexión</h2>
+      <div class="tabla-envoltorio">
+        <table>
+          <caption class="sr-solo">Resultado de la prueba contra Apollo</caption>
+          <tbody>
+            <tr><th scope="row">Resultado</th>
+                <td>
+                  <span class="chip {{ 'ok' if diagnostico.ok else 'urgente' }}">
+                    {{ 'Anduvo' if diagnostico.ok else 'Falló' }}
+                  </span>
+                </td></tr>
+            <tr><th scope="row">Código HTTP</th><td>{{ diagnostico.estado }}</td></tr>
+            <tr><th scope="row">Qué contestó Apollo</th>
+                <td class="mini">{{ diagnostico.respuesta }}</td></tr>
+            <tr><th scope="row">Endpoint</th><td class="mini">{{ diagnostico.endpoint }}</td></tr>
+            <tr><th scope="row">Clave cargada</th>
+                <td class="mini">{{ diagnostico.clave }} ({{ diagnostico.largo_clave }} caracteres)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      {% if not diagnostico.ok %}
+      <p class="ayuda">
+        Con <strong>401</strong> la clave no es válida: regenerala en Apollo, en
+        Settings → Integrations → API, y volvé a cargar
+        <code>TALANTON_APOLLO_API_KEY</code>. Con <strong>403</strong> la clave está
+        bien pero tu plan no tiene la API habilitada, y eso no se arregla desde acá.
+      </p>
+      {% endif %}
+    </section>
+    {% endif %}
 
     {% if resultado %}
     <section class="panel" aria-labelledby="t-resultados">

@@ -117,28 +117,37 @@ class Cliente:
 
     # --- Transporte ----------------------------------------------------------
 
+    def _crudo(self, ruta: str, cuerpo: dict) -> httpx.Response:
+        return httpx.post(
+            f"{BASE_API}/{ruta}",
+            json=cuerpo,
+            headers={
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache",
+                # Apollo migró del `api_key` en el body a este header. El body
+                # sigue funcionando pero deja la clave en logs de proxies; el
+                # header no.
+                "x-api-key": self._clave,
+            },
+            timeout=TIMEOUT,
+        )
+
     def _post(self, ruta: str, cuerpo: dict) -> dict:
         try:
-            respuesta = httpx.post(
-                f"{BASE_API}/{ruta}",
-                json=cuerpo,
-                headers={
-                    "Content-Type": "application/json",
-                    "Cache-Control": "no-cache",
-                    # Apollo migró del `api_key` en el body a este header. El
-                    # body sigue funcionando pero deja la clave en logs de
-                    # proxies; el header no.
-                    "x-api-key": self._clave,
-                },
-                timeout=TIMEOUT,
-            )
+            respuesta = self._crudo(ruta, cuerpo)
         except httpx.HTTPError as exc:
             raise ErrorApollo(f"No se pudo llegar a Apollo: {exc}") from exc
 
         if respuesta.status_code in (401, 403):
+            # El motivo real viene en el cuerpo y son dos casos muy distintos:
+            # una clave mal copiada se arregla en un minuto, un plan sin API no
+            # se arregla nunca desde acá. Mostrar el texto de Apollo evita
+            # mandar a alguien a regenerar una key que estaba bien.
             raise ErrorApollo(
-                "Apollo rechazó la clave. Revisá que sea una API key vigente y que "
-                "el plan tenga acceso a la API."
+                f"Apollo rechazó la clave ({respuesta.status_code}). Dice: "
+                f"«{_detalle(respuesta)}». Si el texto habla del plan o de "
+                "permisos, es que tu cuenta no tiene la API habilitada; si no, "
+                "regenerá la key en Settings → Integrations → API."
             )
         if respuesta.status_code == 422:
             raise ErrorApollo(
@@ -158,6 +167,41 @@ class Cliente:
             return respuesta.json()
         except ValueError as exc:
             raise ErrorApollo("Apollo devolvió una respuesta que no es JSON.") from exc
+
+    # --- Diagnóstico ---------------------------------------------------------
+
+    def diagnostico(self) -> dict:
+        """Golpea la API con el pedido más chico posible y cuenta qué pasó.
+
+        No interpreta ni levanta excepción: devuelve el código y el texto tal
+        como los mandó Apollo. Cuando el mensaje traducido no alcanza —y con un
+        401 nunca alcanza, porque «clave inválida» y «plan sin API» se ven
+        igual— esto es lo que resuelve la duda en un click.
+        """
+        info = {
+            "endpoint": f"{BASE_API}/mixed_people/search",
+            # Nunca la clave entera: esta pantalla se comparte en capturas.
+            "clave": f"{self._clave[:6]}…{self._clave[-4:]}" if len(self._clave) > 12 else "(muy corta)",
+            "largo_clave": len(self._clave),
+        }
+        try:
+            respuesta = self._crudo("mixed_people/search", {"page": 1, "per_page": 1})
+        except httpx.HTTPError as exc:
+            info["ok"] = False
+            info["estado"] = "sin conexión"
+            info["respuesta"] = str(exc)
+            return info
+
+        info["estado"] = respuesta.status_code
+        info["ok"] = respuesta.status_code < 400
+        info["respuesta"] = _detalle(respuesta) if not info["ok"] else "OK"
+        if info["ok"]:
+            try:
+                total = (respuesta.json().get("pagination") or {}).get("total_entries")
+                info["respuesta"] = f"OK — Apollo devolvió {total} resultados posibles."
+            except ValueError:
+                pass
+        return info
 
     # --- Operaciones ---------------------------------------------------------
 

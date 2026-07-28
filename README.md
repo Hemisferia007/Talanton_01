@@ -100,11 +100,16 @@ No toca el score: el score sale de los cuatro ejes y es lo que el comercial le
 puede explicar al cliente. El asistente lee lo que los ejes no miran —el texto— y
 queda al lado, fechado. Su respuesta más valiosa suele ser *«no conviene»*.
 
-**Buscar decisores** (opcional, requiere cuenta de Apollo — ver
+**Buscar decisores** (opcional, requiere plan pago de Apollo — ver
 [`docs/apollo.md`](docs/apollo.md)): filtrás por cargo, país, industria y tamaño y
 traés las empresas con la persona que firma. Buscar es gratis y los emails vienen
 tapados; destaparlos consume créditos y es un botón aparte, para poder ajustar los
 filtros sin gastar.
+
+Sin plan pago no hace falta: la exportación CSV de Apollo entra por **Importar** y
+termina idéntica en la base. Los encabezados que rompen un importador genérico
+—`First Name`+`Last Name`, `# Employees`, `City` contra `Company City`— ya están
+contemplados.
 
 Apollo dice **quién** decide; los avisos dicen **cuándo** conviene escribirle. Lo que
 rinde es usar los dos: traés las empresas de tu rubro, las dejás en Fuentes, y cuando
@@ -204,7 +209,7 @@ talanton/
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            359 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
+tests/            364 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
 docs/             Estrategia, alta de Gmail, LinkedIn/Apify, Apollo, asistente y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```

@@ -49,7 +49,34 @@ el nombre y el cargo del decisor sin gastar un crédito. Sirve más de lo que
 parece: con eso ya sabés a quién buscar, y el mail puede salir del aviso de la
 propia empresa (`python -m talanton.cli enriquecer`).
 
-## Alta
+## Si tu plan no tiene API
+
+**La API de Apollo es de plan pago.** Con una cuenta gratuita la key existe pero
+los endpoints devuelven 403, y eso no se arregla desde acá.
+
+No estás trabado: **exportá desde la web de Apollo y pegá en Importar.** El
+resultado en la base es exactamente el mismo —empresa, contacto marcado como
+decisor, lead en «Nuevo», score calculado—; lo único que cambia es que el paso
+de traer los datos lo hacés vos en vez del servidor.
+
+1. En Apollo hacés la búsqueda con los filtros que quieras.
+2. Seleccionás las filas y **Export**.
+3. Abrís el CSV, copiás todo y lo pegás en **Importar**.
+
+Talanton reconoce los encabezados de Apollo tal cual vienen, incluidos los tres
+que suelen romper un importador genérico:
+
+| Columna de Apollo | Qué hace Talanton |
+|---|---|
+| `First Name` + `Last Name` | Las junta. Sin esto el saludo del mail sale cortado |
+| `# Employees` | La lee igual pese al `#`, y alimenta el eje de capacidad de pago |
+| `City` y `Company City` | Gana la de la empresa: el lead es la empresa, no la persona |
+| `Person Linkedin Url` | Queda como procedencia del contacto, para poder auditarlo |
+
+La pantalla **Buscar** queda ahí para el día que actives la API. No hay nada que
+migrar: las dos vías escriben en la misma tabla por el mismo código.
+
+## Alta de la API
 
 1. En Apollo: **Settings → Integrations → API**, generá una key.
 2. Cargala como variable del servicio:
@@ -60,8 +87,10 @@ TALANTON_APOLLO_API_KEY=...
 
 3. Reiniciá y entrá a **Buscar**.
 
-> El acceso a la API no viene en todos los planes de Apollo. Si la clave devuelve
-> 401/403 con una key que copiaste bien, es eso: el plan no tiene API.
+Si algo falla, el botón **Probar la conexión** golpea la API con el pedido más
+chico posible y te muestra el código HTTP y el texto que devolvió Apollo, sin
+traducir. Con **401** la clave no sirve; con **403** la clave está bien y el que
+no alcanza es el plan.
 
 ## Los filtros
 
@@ -79,9 +108,19 @@ libre: trabaja por tramos fijos (1-10, 11-20, 21-50, 51-100…). Talanton traduc
 tu rango a los tramos que se **solapan**, no a los que caen enteros adentro: con
 20-300, el tramo 11-20 también tiene empresas que sirven.
 
-**Industrias** también sale del ICP. Vacío busca en todas, que suele ser mejor al
-principio: es más fácil descartar mirando la lista que adivinar el nombre exacto
-que Apollo le pone a tu rubro.
+**Industrias** es una lista cerrada con nombres en castellano. Tiene que serlo:
+Apollo filtra por palabras clave **de su propio vocabulario y en inglés**, así que
+un campo de texto libre es una trampa —escribís «Logística», no matchea nada, y
+la conclusión equivocada es que Apollo no tiene empresas de logística en
+Argentina—. La lista no trae las ~150 industrias de Apollo sino las que le
+compran a una consultora de selección en Argentina y LatAm.
+
+Para lo que no esté hay un campo de **palabras clave libres**, y ahí sí manda el
+inglés: «fintech» funciona, «tecnología financiera» no.
+
+Vacío busca en todas, que al principio suele rendir más: es más fácil descartar
+mirando la lista que adivinar cómo llama Apollo a tu rubro. Se precarga con el
+ICP de *Mi empresa*, traduciendo del castellano.
 
 **País** filtra por la ubicación de la *empresa*, no de la persona. Interesa dónde
 está la operación que contrata, no dónde vive el gerente.

@@ -195,3 +195,58 @@ def test_datos_ilegibles_muestran_el_error(cliente):
 def test_la_pantalla_esta_protegida(cliente_anonimo):
     r = cliente_anonimo.get("/importar", follow_redirects=False)
     assert r.status_code == 303
+
+
+# --- Exportación de Apollo ---------------------------------------------------
+#
+# Es el camino real para quien no tiene la API paga: se exporta desde la web de
+# Apollo y se pega acá. Los encabezados son los que pone Apollo tal cual.
+
+CSV_APOLLO = """First Name,Last Name,Title,Company,Email,Email Status,\
+Corporate Phone,# Employees,Industry,Person Linkedin Url,Website,City,\
+Company City,Company Country
+Marina,Quiroga,Gerenta de RRHH,Andes Logística,mquiroga@andeslog.com.ar,verified,\
++54 261 555-0000,180,logistics & supply chain,https://linkedin.com/in/mquiroga,\
+http://www.andeslog.com.ar,Godoy Cruz,Mendoza,Argentina"""
+
+
+def test_el_csv_de_apollo_entra_completo():
+    fila = importar.analizar(CSV_APOLLO).filas[0]
+
+    assert fila.empresa == "Andes Logística"
+    # Nombre y apellido vienen en columnas separadas y hay que volver a juntarlos:
+    # sin esto el saludo del mail sale «Hola Marina,» a secas o directamente mal.
+    assert fila.contacto == "Marina Quiroga"
+    assert fila.cargo == "Gerenta de RRHH"
+    assert fila.email == "mquiroga@andeslog.com.ar"
+    assert fila.telefono == "+54 261 555-0000"
+    assert fila.industria == "logistics & supply chain"
+    assert fila.dominio == "andeslog.com.ar"
+
+
+def test_el_encabezado_con_puntuacion_igual_se_reconoce():
+    """Apollo titula la columna «# Employees»: sin limpiar la puntuación, la
+    dotación se perdía en silencio y con ella el eje de capacidad de pago."""
+    assert importar.analizar(CSV_APOLLO).filas[0].dotacion == 180
+
+
+def test_gana_la_ciudad_de_la_empresa_sobre_la_de_la_persona():
+    """La persona vive en Godoy Cruz, la empresa está en Mendoza. Importa la
+    segunda: el lead es la empresa."""
+    assert importar.analizar(CSV_APOLLO).filas[0].ciudad == "Mendoza"
+
+
+def test_el_linkedin_queda_como_procedencia(session):
+    """Un dato de contacto de un tercero sin procedencia no se puede defender."""
+    from sqlalchemy import select
+
+    from talanton.models import Contacto
+
+    importar.importar(session, importar.analizar(CSV_APOLLO).filas)
+    contacto = session.scalar(select(Contacto))
+    assert contacto.fuente_url == "https://linkedin.com/in/mquiroga"
+
+
+def test_sin_columna_de_linkedin_la_procedencia_sigue_siendo_manual():
+    fila = importar.analizar("Empresa,Contacto\nAcme,Juan Pérez").filas[0]
+    assert fila.procedencia == "importado a mano"

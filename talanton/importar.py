@@ -14,6 +14,7 @@ from __future__ import annotations
 import csv
 import io
 import logging
+import re
 from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
@@ -24,23 +25,42 @@ from .services import asegurar_lead, perfil, recalcular_lead, upsert_empresa
 
 log = logging.getLogger("talanton.importar")
 
-# Nombres de columna que aceptamos para cada campo. Se comparan sin acentos ni
-# mayúsculas: quien exporta de Excel no va a normalizar nada.
+# Nombres de columna que aceptamos para cada campo. Se comparan sin acentos,
+# sin mayúsculas y sin puntuación: quien exporta de Excel no va a normalizar
+# nada, y Apollo titula una columna «# Employees».
+#
+# El orden dentro de cada tupla importa: gana el primero que aparece en el
+# archivo, así que los nombres más específicos van primero. «Company City» tiene
+# que ganarle a «City» cuando están las dos, porque la ciudad que nos importa es
+# la de la empresa, no la de la persona.
 _COLUMNAS = {
     "empresa": ("empresa", "company", "compania", "razon social", "cliente",
-                "organizacion", "account", "company name", "nombre empresa"),
+                "organizacion", "account", "company name", "nombre empresa",
+                "company name for emails"),
     "dominio": ("dominio", "domain", "web", "sitio", "sitio web", "website",
                 "url", "pagina"),
-    "contacto": ("contacto", "nombre", "name", "full name", "first name",
-                 "nombre completo", "persona", "referente"),
+    "contacto": ("contacto", "nombre completo", "nombre", "name", "full name",
+                 "first name", "persona", "referente"),
+    # Apollo y la mayoría de los CRMs parten el nombre en dos columnas. Sin
+    # esto, un contacto exportado queda como «Marina» a secas y el saludo del
+    # mail sale cortado.
+    "apellido": ("apellido", "apellidos", "last name", "surname", "family name"),
     "cargo": ("cargo", "puesto", "title", "job title", "position", "rol"),
     "email": ("email", "e-mail", "mail", "correo", "email address",
-              "correo electronico"),
-    "telefono": ("telefono", "phone", "tel", "celular", "mobile", "whatsapp"),
+              "correo electronico", "work email"),
+    "telefono": ("telefono", "phone", "tel", "celular", "mobile", "whatsapp",
+                 "corporate phone", "work direct phone", "mobile phone",
+                 "company phone"),
     "industria": ("industria", "rubro", "industry", "sector"),
     "dotacion": ("dotacion", "empleados", "employees", "headcount", "size",
-                 "tamano", "employee count"),
-    "ciudad": ("ciudad", "city", "localidad", "ubicacion", "location"),
+                 "tamano", "employee count", "num employees",
+                 "number of employees"),
+    "ciudad": ("company city", "ciudad", "city", "localidad", "ubicacion",
+               "location"),
+    # Sirve como procedencia auditable del contacto, que es justo lo que a una
+    # lista comprada le falta.
+    "linkedin": ("person linkedin url", "linkedin", "linkedin url",
+                 "perfil linkedin"),
     "notas": ("notas", "notes", "comentarios", "observaciones"),
 }
 
@@ -81,19 +101,36 @@ class Resultado:
 
 
 def _clave(texto: str) -> str:
-    return sin_acentos(texto or "").strip().lower().replace("_", " ")
+    """Deja el encabezado comparable: sin acentos, sin mayúsculas y sin
+    puntuación. `# Employees` y `E-mail` tienen que caer en `employees` y
+    `email`, si no la columna se pierde en silencio."""
+    limpio = sin_acentos(texto or "").lower()
+    limpio = re.sub(r"[^a-z0-9]+", " ", limpio)
+    return limpio.strip()
+
+
+# Los alias también se normalizan, para compararlos contra lo mismo.
+_ALIAS = {campo: [_clave(a) for a in alias] for campo, alias in _COLUMNAS.items()}
 
 
 def _mapear_encabezados(cabecera: list[str]) -> dict[str, int]:
-    """Qué columna del archivo corresponde a cada campo nuestro."""
+    """Qué columna del archivo corresponde a cada campo nuestro.
+
+    Recorre por campo y no por columna, así el orden de preferencia de los
+    alias manda: con «City» y «Company City» presentes, gana la de la empresa.
+    """
     posiciones: dict[str, int] = {}
-    for i, celda in enumerate(cabecera):
-        limpia = _clave(celda)
-        for campo, alias in _COLUMNAS.items():
+    limpias = [_clave(c) for c in cabecera]
+    tomadas: set[int] = set()
+
+    for campo, alias in _ALIAS.items():
+        for nombre in alias:
+            for i, limpia in enumerate(limpias):
+                if limpia == nombre and i not in tomadas:
+                    posiciones[campo] = i
+                    tomadas.add(i)
+                    break
             if campo in posiciones:
-                continue
-            if limpia in alias:
-                posiciones[campo] = i
                 break
     return posiciones
 
@@ -187,11 +224,18 @@ def analizar(texto: str) -> Resultado:
             resultado.ignoradas.append(f"Fila {numero}: «{email}» no es un email válido")
             email = None
 
+        # Nombre y apellido en columnas separadas es lo normal en cualquier
+        # exportación de CRM; acá se vuelven a juntar.
+        persona = " ".join(
+            x for x in (celda("contacto"), celda("apellido")) if x
+        ).strip() or None
+
+        linkedin = celda("linkedin")
         resultado.filas.append(
             Fila(
                 empresa=nombre,
                 dominio=normalizar_dominio(celda("dominio") or email),
-                contacto=celda("contacto"),
+                contacto=persona,
                 cargo=celda("cargo"),
                 email=email,
                 telefono=celda("telefono"),
@@ -199,6 +243,7 @@ def analizar(texto: str) -> Resultado:
                 dotacion=_entero(celda("dotacion")),
                 ciudad=celda("ciudad"),
                 notas=celda("notas"),
+                procedencia=linkedin or "importado a mano",
             )
         )
 
