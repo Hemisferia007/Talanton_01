@@ -139,6 +139,7 @@
               <div class="celda-titulo">{{ v.titulo }}</div>
               {% if v.reposteos %}<div class="celda-sub">Republicada {{ v.reposteos }}×</div>{% endif %}
               {% if v.publicada_por_consultora %}<div class="celda-sub">Publicada por una consultora</div>{% endif %}
+              {% if v.es_perenne %}<div class="celda-sub">Buzón de CVs, no cuenta como búsqueda</div>{% endif %}
             </td>
             <td>{{ v.seniority.etiqueta }}</td>
             <td>{{ v.ubicacion or '—' }}</td>

@@ -223,6 +223,38 @@ _MARCAS_CONSULTORA = [
 ]
 
 
+# Avisos que nunca se cierran porque no son búsquedas: son buzones de CV. Una
+# empresa los deja publicados para siempre, así que acumulan días abiertos sin
+# parar y terminan arriba de todo en el ranking justo por no ser una búsqueda
+# real. Es el peor falso positivo posible: llamar a alguien por un aviso de hace
+# seis años quema la credibilidad en la primera frase.
+_AVISOS_PERENNES = [
+    "general application", "spontaneous application", "open application",
+    "candidatura espontanea", "postulacion espontanea", "autocandidatura",
+    "talent pool", "talent community", "talent network", "banco de talento",
+    "base de datos", "any other talent", "other talent", "future opportunities",
+    "futuras oportunidades", "otras posiciones", "otras oportunidades",
+    "no encontraste", "didn t find", "didn't find", "none of the above",
+    "trabaja con nosotros", "work with us", "join our team", "sumate al equipo",
+    "envianos tu cv", "send us your cv", "envia tu cv", "postulate aca",
+    "generico", "generica", "spontaneous",
+]
+
+
+def es_aviso_perenne(titulo: str, descripcion: str | None = None) -> bool:
+    """Si el aviso es un buzón de CVs permanente y no una búsqueda concreta.
+
+    Se mira sobre todo el título: la descripción de un aviso real puede decir
+    «sumate al equipo» de puro entusiasmo, pero un aviso que se **llama**
+    «General Applications» no es una vacante que la empresa no logra cerrar.
+    """
+    limpio = sin_acentos(titulo or "").lower()
+    if any(marca in limpio for marca in _AVISOS_PERENNES):
+        return True
+    # Un título de una sola palabra genérica tampoco es una búsqueda.
+    return limpio.strip() in {"talento", "talent", "candidatos", "candidates", "cv"}
+
+
 def publicado_por_consultora(nombre_empresa: str, descripcion: str | None = None) -> bool:
     """Si el aviso ya lo publica una consultora, el lead está tomado.
 

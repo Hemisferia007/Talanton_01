@@ -137,7 +137,43 @@ class Empresa(Base):
 
     @property
     def vacantes_abiertas(self) -> list["Vacante"]:
-        return [v for v in self.vacantes if not v.cerrada]
+        """Las búsquedas reales que la empresa tiene abiertas.
+
+        Los avisos perennes —«General Applications», «Talent Pool»— quedan
+        afuera a propósito. No son búsquedas que no se logran cerrar: son
+        buzones de CV que la empresa deja publicados para siempre. Como nunca
+        cierran, acumulan días sin parar y se trepan al tope del ranking
+        justamente por no ser lo que buscamos. Un mail que abre con «vi que
+        hace 2192 días buscan General Applications» quema la credibilidad en
+        la primera frase.
+        """
+        return [v for v in self.vacantes if not v.cerrada and not v.es_perenne]
+
+    @property
+    def vacantes_perennes(self) -> list["Vacante"]:
+        """Se muestran igual, marcadas: desaparecer en silencio confunde más."""
+        return [v for v in self.vacantes if not v.cerrada and v.es_perenne]
+
+    @property
+    def parece_proveedor(self) -> bool:
+        """Consultoras, staffing y fábricas de software que revenden gente.
+
+        No son clientes: son competencia o intermediarios. Se detectan por el
+        nombre, por el texto de sus avisos, o por tener una cantidad de
+        búsquedas simultáneas que ninguna empresa real sostiene —una de 200
+        personas no tiene 800 vacantes abiertas, las tiene porque publica las
+        de sus clientes—.
+        """
+        from .normalize import publicado_por_consultora
+
+        if len([v for v in self.vacantes if not v.cerrada]) > _TOPE_VACANTES_CREIBLE:
+            return True
+        return publicado_por_consultora(self.nombre, self.industria)
+
+
+# Más búsquedas simultáneas que esto y no es una empresa contratando: es
+# alguien publicando las vacantes de terceros.
+_TOPE_VACANTES_CREIBLE = 40
 
 
 class Vacante(Base):
@@ -190,6 +226,18 @@ class Vacante(Base):
         fin = self.fecha_cierre or ahora().date()
         inicio = self.fecha_publicacion or self.primera_vez_vista
         return max((fin - inicio).days, 0)
+
+    @property
+    def es_perenne(self) -> bool:
+        """Buzón de CVs permanente, no una búsqueda concreta.
+
+        Se calcula del título en vez de guardarse: la regla va a ir cambiando a
+        medida que aparezcan variantes, y una columna congelaría la
+        clasificación del día en que se ingirió el aviso.
+        """
+        from .normalize import es_aviso_perenne
+
+        return es_aviso_perenne(self.titulo, self.descripcion)
 
     @property
     def es_urgente(self) -> bool:

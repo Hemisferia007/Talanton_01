@@ -192,6 +192,14 @@ exactamente igual que un día tranquilo — y el histórico que no se juntó no 
 - `primera_vez_vista` no se pisa nunca. Es lo que permite calcular días abiertos.
 - Si una vacante cerrada reaparece, cuenta como **reposteo**: reintentaron y volvieron a
   fallar.
+- **Los buzones de CV no son búsquedas.** «General Applications», «Talent Pool»,
+  «Candidatura espontánea»: nunca cierran, así que acumulan días para siempre y se
+  trepan solos al tope del ranking justo por no ser lo que buscamos. Se muestran
+  marcados pero no cuentan como búsqueda abierta ni pesan en el score.
+- **Las consultoras y las staffing no son clientes, son competencia.** Se detectan
+  por el nombre o por publicar más búsquedas simultáneas de las que ninguna empresa
+  sostiene —una de 200 personas no tiene 800 vacantes propias— y quedan al fondo del
+  ranking en vez de arriba.
 - Los roles se normalizan (`Programador Full-Stack Ssr` ≡ `Full Stack Developer Senior`,
   `Ingeniero DevOps` ≡ `DevOps Engineer`), sin lo cual las señales de reposteo y
   recurrencia directamente no existen. El vocabulario de IT está cubierto en los dos
@@ -239,7 +247,7 @@ talanton/
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            431 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
+tests/            446 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
 docs/             Primera búsqueda, estrategia, Gmail, LinkedIn/Apify, Apollo, asistente y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```

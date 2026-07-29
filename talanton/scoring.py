@@ -174,6 +174,15 @@ def _accesibilidad(empresa: Empresa) -> tuple[float, list[str]]:
     razones: list[str] = []
     puntos = 0.0
 
+    # Antes que nada: si la empresa es una consultora, una staffing o una
+    # fábrica que revende gente, no es un cliente — es competencia. Publicar
+    # ochocientas búsquedas no la vuelve un lead caliente, la delata.
+    if empresa.parece_proveedor:
+        return 5.0, [
+            "Parece una consultora o proveedora de personal, no una empresa "
+            "que contrate para sí: es competencia, no cliente"
+        ]
+
     if not empresa.tiene_equipo_ta:
         puntos += 40
         razones.append("Sin equipo de selección interno: terceriza sí o sí")
