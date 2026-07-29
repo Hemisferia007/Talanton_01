@@ -116,6 +116,39 @@ a:hover { text-decoration: underline; }
 .topbar nav a[aria-current="page"] { background: var(--acento-tinta); color: var(--acento); font-weight: 600; }
 .accion-topbar { margin-left: auto; display: flex; gap: var(--s2); }
 
+/* Menú «Más»: pantallas de alta y configuración, que se usan una vez.
+   <details> nativo — abre con Enter y cierra con Esc sin una línea de JS. */
+.menu-mas { position: relative; }
+.menu-mas > summary {
+  padding: var(--s1) var(--s3);
+  border-radius: var(--r-sm);
+  color: var(--n-600);
+  font-size: var(--t-sm);
+  cursor: pointer;
+  list-style: none;
+}
+.menu-mas > summary::-webkit-details-marker { display: none; }
+.menu-mas > summary::after { content: " ▾"; }
+.menu-mas > summary:hover { background: var(--n-50); color: var(--n-900); }
+.menu-mas > summary[aria-current="page"] {
+  background: var(--acento-tinta); color: var(--acento); font-weight: 600;
+}
+.menu-mas-panel {
+  position: absolute;
+  top: calc(100% + var(--s1));
+  left: 0;
+  z-index: 20;
+  min-width: 200px;
+  display: grid;
+  padding: var(--s1);
+  background: var(--n-0);
+  border: 1px solid var(--n-200);
+  border-radius: var(--r-md);
+  /* Acá sí flota de verdad: está por encima del contenido. */
+  box-shadow: var(--flotante);
+}
+.menu-mas-panel a { white-space: nowrap; }
+
 /* --- Login --- */
 .pantalla-login {
   display: grid;

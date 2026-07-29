@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from starlette.middleware.sessions import SessionMiddleware
 
-from .. import auth, services
+from .. import arranque, auth, services
 from ..apollo import busqueda as apollo_busqueda
 from ..apollo import cliente as apollo_cliente
 from ..apollo import industrias as apollo_industrias
@@ -481,6 +481,46 @@ def importar_lista(
         request,
         "importar.html",
         _contexto(request, previsualizacion=None, resultado=resultado, datos="", error=None),
+    )
+
+
+# --- Empezar -----------------------------------------------------------------
+
+
+@app.get("/empezar", response_class=HTMLResponse)
+def empezar_form(request: Request, db: Session = Depends(db_dependency)):
+    return templates.TemplateResponse(
+        request,
+        "empezar.html",
+        _contexto(
+            request,
+            lista=arranque.LISTA_IT_ARGENTINA,
+            resultado=None,
+            error=None,
+            hay_leads=bool(services.listar_leads(db)),
+        ),
+    )
+
+
+@app.post("/empezar", response_class=HTMLResponse)
+def empezar(
+    request: Request,
+    datos: str = Form(...),
+    pais: str = Form("AR"),
+    db: Session = Depends(db_dependency),
+):
+    """Todo el arranque encadenado. Tarda; por eso la pantalla lo avisa."""
+    resultado = arranque.primer_arranque(db, datos, pais=pais)
+    return templates.TemplateResponse(
+        request,
+        "empezar.html",
+        _contexto(
+            request,
+            lista=datos if resultado.error else arranque.LISTA_IT_ARGENTINA,
+            resultado=resultado if resultado.sirvio else None,
+            error=resultado.error,
+            hay_leads=True,
+        ),
     )
 
 

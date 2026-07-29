@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block titulo %}Empezar · Talanton{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Empezar</h1>
+    <p class="subtitulo">
+      Pegá una lista de empresas y Talanton hace el resto: las carga, busca dónde
+      publican sus avisos, los trae, saca los contactos que encuentre y puntúa
+      todo. Un solo paso.
+    </p>
+  </div>
+</div>
+
+{% if error %}<p class="alerta alerta-error" role="alert">{{ error }}</p>{% endif %}
+
+{% if resultado %}
+  <p class="alerta alerta-ok" role="status">
+    <strong>Listo.</strong>
+    {{ resultado.empresas }} empresas cargadas ·
+    {{ resultado.avisos }} búsquedas abiertas detectadas ·
+    {{ resultado.urgentes }} de ellas ya se están estirando ·
+    {{ resultado.listos_para_escribir }} leads con mail para escribirles hoy.
+  </p>
+
+  <section class="panel" aria-labelledby="t-pasos" style="margin-bottom:var(--s4)">
+    <h2 id="t-pasos">Qué pasó</h2>
+    <ul class="razones">
+      {% for p in resultado.pasos %}
+        <li>
+          <strong>{{ p.nombre }}:</strong> {{ p.detalle }}
+          {% if not p.ok %}<span class="chip tibio">Incompleto</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="ayuda" style="margin-top:var(--s4)">
+      Lo que no se pudo resolver hoy —una empresa sin board público, un dominio que
+      no responde— queda anotado en <a href="/fuentes">Fuentes</a> y lo reintenta la
+      corrida diaria. No hace falta hacer nada.
+    </p>
+    <div style="display:flex; gap:var(--s2); margin-top:var(--s4)">
+      <a class="btn" href="/leads?orden=score">Ver los leads</a>
+      <a class="btn btn-fantasma" href="/avisos">Ver los avisos</a>
+    </div>
+  </section>
+{% endif %}
+
+<div class="grid-principal">
+  <div class="pila">
+    <section class="panel" aria-labelledby="t-lista">
+      <h2 id="t-lista">Las empresas</h2>
+      <p class="subtitulo">
+        Viene cargada una lista de 45 empresas de IT argentinas para arrancar hoy
+        mismo. Borrala y pegá la tuya si ya tenés uno —un Excel de clientes viejos,
+        una exportación de Apollo, contactos de una feria—.
+      </p>
+      <form method="post" action="/empezar" id="forma-empezar">
+        <div class="campo">
+          <label for="datos">Empresas (una por línea, o pegá una tabla entera)</label>
+          <textarea id="datos" name="datos" rows="16" required
+                    aria-describedby="ayuda-datos">{{ lista }}</textarea>
+          <p class="ayuda" id="ayuda-datos">
+            Alcanza con el nombre. Si tenés el dominio, el contacto o el mail,
+            ponelos también: cuanto más completo, mejor arranca.
+          </p>
+        </div>
+        <div style="display:flex; gap:var(--s3); align-items:flex-end">
+          <div class="filtro">
+            <label for="pais">País</label>
+            <select id="pais" name="pais">
+              {% for p in paises %}
+                <option value="{{ p }}" {{ 'selected' if p == 'AR' }}>{{ pais_nombre[p] }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button class="btn" type="submit" id="boton-empezar">Cargar y buscar avisos</button>
+        </div>
+        <p class="ayuda" id="estado-empezar" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+  </div>
+
+  <div class="pila">
+    <section class="panel" aria-labelledby="t-tarda">
+      <h2 id="t-tarda">Tarda unos minutos</h2>
+      <p class="mini">
+        Buscar dónde publica cada empresa son varios pedidos por empresa. Con 45
+        pueden ser tres o cuatro minutos. Dejá la pestaña abierta.
+      </p>
+      <p class="ayuda">
+        Es la parte más lenta y también la que más rinde: sin saber dónde publican,
+        el sistema no puede contar los días que lleva abierta una búsqueda, que es
+        de lo que después se trata todo.
+      </p>
+    </section>
+
+    <section class="panel" aria-labelledby="t-despues">
+      <h2 id="t-despues">Y después</h2>
+      <ol class="mini" style="padding-left:var(--s4); line-height:1.7">
+        <li>Entrás a <a href="/leads?orden=score">Leads</a>, ordenado por score.</li>
+        <li>A los de arriba les escribís: el borrador se abre solo, con el dato
+            concreto de cada uno.</li>
+        <li>De acá en más la corrida diaria sigue sola. En dos o tres semanas los
+            avisos tienen días acumulados y ahí el mail se vuelve mucho mejor.</li>
+      </ol>
+      <p class="ayuda">
+        Si todavía no cargaste tu perfil, pasá primero por
+        <a href="/mi-empresa">Mi empresa</a>: el score usa ese ICP para priorizar.
+      </p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* El arranque tarda minutos. Sin aviso, la reacción natural es apretar de nuevo
+   y disparar dos corridas en paralelo. */
+(function () {
+  const forma = document.getElementById("forma-empezar");
+  if (!forma) return;
+  forma.addEventListener("submit", () => {
+    const boton = document.getElementById("boton-empezar");
+    const estado = document.getElementById("estado-empezar");
+    if (boton) { boton.disabled = true; boton.textContent = "Trabajando…"; }
+    if (estado) {
+      estado.textContent =
+        "Cargando empresas, buscando dónde publican y trayendo sus avisos. " +
+        "Pueden ser varios minutos: no cierres esta pestaña.";
+    }
+  });
+})();
+</script>
+{% endblock %}

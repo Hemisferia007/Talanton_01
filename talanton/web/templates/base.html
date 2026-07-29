@@ -14,21 +14,34 @@
     <span class="logo" aria-hidden="true">T</span>
     <span>Talanton</span>
   </a>
+  {# Cinco destinos al frente: es el camino de todos los días. El resto son
+     pantallas de alta y configuración, que se usan una vez y estorban el resto
+     del tiempo — van en el desplegable de al lado. #}
   <nav aria-label="Secciones">
     {% set ruta = request.url.path %}
     {% for href, texto, activa in [
       ('/', 'Panel', ruta == '/'),
-      ('/tablero', 'Tablero', ruta == '/tablero'),
       ('/leads', 'Leads', ruta.startswith('/leads')),
+      ('/tablero', 'Tablero', ruta == '/tablero'),
       ('/avisos', 'Avisos', ruta == '/avisos'),
-      ('/buscar', 'Buscar', ruta.startswith('/buscar')),
-      ('/importar', 'Importar', ruta.startswith('/importar')),
-      ('/senales', 'Señales', ruta.startswith('/senales')),
-      ('/fuentes', 'Fuentes', ruta.startswith('/fuentes')),
-      ('/mi-empresa', 'Mi empresa', ruta == '/mi-empresa')
+      ('/empezar', 'Cargar empresas', ruta.startswith('/empezar'))
     ] %}
       <a href="{{ href }}" {% if activa %}aria-current="page"{% endif %}>{{ texto }}</a>
     {% endfor %}
+
+    {% set en_mas = ruta.startswith('/importar') or ruta.startswith('/buscar')
+                    or ruta.startswith('/senales') or ruta.startswith('/fuentes')
+                    or ruta == '/mi-empresa' %}
+    <details class="menu-mas">
+      <summary {% if en_mas %}aria-current="page"{% endif %}>Más</summary>
+      <div class="menu-mas-panel">
+        <a href="/mi-empresa">Mi empresa y Gmail</a>
+        <a href="/fuentes">Fuentes de avisos</a>
+        <a href="/importar">Importar una lista</a>
+        <a href="/buscar">Buscar en Apollo</a>
+        <a href="/senales">Señales por revisar</a>
+      </div>
+    </details>
   </nav>
   <div class="accion-topbar">
     <form method="post" action="/recalcular">

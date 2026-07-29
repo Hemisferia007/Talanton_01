@@ -41,18 +41,29 @@ python -m talanton.cli ingestar  # lee fuentes.json
 
 **Mini-CRM web** (FastAPI + Jinja2, sin build step):
 
+Cinco destinos al frente —el camino de todos los días— y el resto en el menú «Más»,
+que son pantallas de alta y configuración que se usan una vez.
+
 | Pantalla | Qué muestra |
 |---|---|
 | **Panel** | Métricas, leads nuevos por encima del umbral y búsquedas que se les están estirando |
-| **Tablero** | Kanban con drag & drop: Nuevo → Contactado → En conversación → Reunión → Propuesta → Ganado/Perdido |
 | **Leads** | Listado filtrable por estado, país, score y texto, con la señal principal de cada uno |
+| **Tablero** | Kanban con drag & drop: Nuevo → Contactado → En conversación → Reunión → Propuesta → Ganado/Perdido |
 | **Avisos** | Todas las vacantes detectadas, ordenadas por días abiertas |
-| **Buscar** | Empresas y decisores desde Apollo, filtrando por cargo, país, industria y tamaño |
-| **Importar** | Pegás cualquier lista (Excel, Apollo, Hunter, contactos viejos) y queda como leads listos |
-| **Señales** | Cola de revisión de rondas de inversión y expansiones detectadas en posts |
-| **Asistente** | Dentro del lead: «¿conviene contactarlo?» y borradores que contestan el hilo |
-| **Fuentes** | Empresas a vigilar y de dónde se leen sus avisos, con el resultado de cada corrida |
-| **Mi empresa** | Datos de la consultora, el ICP que alimenta el eje de *fit*, y las casillas de Gmail conectadas |
+| **Cargar empresas** | El arranque entero en un paso: pegás una lista y salen leads puntuados |
+| *Más →* **Mi empresa** | Datos de la consultora, el ICP que alimenta el eje de *fit*, y las casillas de Gmail |
+| *Más →* **Fuentes** | Empresas a vigilar y de dónde se leen sus avisos, con el resultado de cada corrida |
+| *Más →* **Importar** | Pegás cualquier lista (Excel, Apollo, Hunter, contactos viejos) sin correr la cadena entera |
+| *Más →* **Buscar** | Empresas y decisores desde Apollo, filtrando por cargo, país, industria y tamaño |
+| *Más →* **Señales** | Cola de revisión de rondas de inversión y expansiones detectadas en posts |
+| Dentro del lead | **Asistente**: «¿conviene contactarlo?» y borradores que contestan el hilo |
+
+**Cargar empresas** es el camino corto y el único que hace falta el primer día.
+Encadena lo que antes eran cuatro pantallas en el orden correcto —importar, dejar
+vigilando, sondear dónde publica cada una, traer los avisos, sacar contactos y
+puntuar— y cuenta en castellano qué pasó en cada tramo. Viene con una lista de 45
+empresas de IT argentinas cargada, para que el histórico empiece a correr hoy y no
+la semana que viene.
 
 Dentro de cada lead, el intercambio con la empresa se ve como un **hilo de chat**:
 lo que mandamos de un lado, lo que contestaron del otro, en orden. Los mails se
@@ -208,6 +219,7 @@ talanton/
   enriquecer/     Contactos desde avisos, verificación de dominio y regla de decisor
   correo/         Gmail: OAuth, cifrado de tokens, plantillas y envío
   apollo/         Búsqueda de empresas y decisores, y su importación
+  arranque.py     El primer arranque encadenado, en un solo paso
   asistente/      Claude: expediente del lead, «¿conviene?» y redacción del hilo
   importar.py     Pegar una lista y que quede como leads
   auth.py         Hash scrypt, login, sesiones
@@ -215,7 +227,7 @@ talanton/
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            392 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
+tests/            410 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
 docs/             Primera búsqueda, estrategia, Gmail, LinkedIn/Apify, Apollo, asistente y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```
