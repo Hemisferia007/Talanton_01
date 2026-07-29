@@ -23,6 +23,18 @@
   </div>
 </div>
 
+{% if contactos_nuevos %}
+  <p class="alerta alerta-ok" role="status">
+    {{ contactos_nuevos }} contacto{{ 's' if contactos_nuevos != '1' }} encontrado{{ 's' if contactos_nuevos != '1' }}.
+    Mirá el cargo antes de escribir: Hunter trae lo que está publicado, no siempre
+    al que decide.
+  </p>
+{% endif %}
+{% if request.query_params.get('aviso') %}
+  <p class="alerta alerta-ok" role="status">
+    Búsqueda cargada. El score se recalculó y el borrador del mail ya la usa.
+  </p>
+{% endif %}
 {% if enviado %}
   <p class="alerta alerta-ok" role="status">Mail enviado. Quedó registrado en la actividad.</p>
 {% endif %}
@@ -134,6 +146,14 @@
             <td>
               {% if v.fuente_url %}<a href="{{ v.fuente_url }}" target="_blank" rel="noopener">{{ v.fuente }}</a>
               {% else %}{{ v.fuente }}{% endif %}
+              {% if not v.cerrada and v.fuente == 'manual' %}
+              {# Sólo las cargadas a mano: las automáticas las cierra la ingesta
+                 cuando dejan de aparecer en la fuente. #}
+              <form method="post" action="/leads/{{ lead.id }}/avisos/{{ v.id }}/cerrar"
+                    style="margin-top:var(--s1)">
+                <button class="btn btn-fantasma mini" type="submit">Ya se cubrió</button>
+              </form>
+              {% endif %}
             </td>
           </tr>
         {% endfor %}
@@ -141,8 +161,58 @@
       </table>
       </div>
       {% else %}
-        <p class="vacio">Sin búsquedas registradas.</p>
+        <p class="vacio">
+          Sin búsquedas registradas. Si viste una publicada —en LinkedIn, en su
+          web, donde sea— cargala acá abajo: es lo que convierte este lead en una
+          conversación con motivo.
+        </p>
       {% endif %}
+
+      {# Muchas empresas argentinas publican sólo en LinkedIn, donde la ingesta
+         automática no llega. Treinta segundos acá valen más que el mejor mail
+         de presentación. #}
+      <details class="registrar-respuesta" {{ 'open' if not vacantes }}>
+        <summary>Cargar una búsqueda que viste</summary>
+        <form method="post" action="/leads/{{ lead.id }}/aviso">
+          <div class="campo">
+            <label for="av-titulo">Puesto</label>
+            <input type="text" id="av-titulo" name="titulo" required
+                   placeholder="DevOps Engineer">
+          </div>
+          <div style="display:flex; gap:var(--s3); flex-wrap:wrap">
+            <div class="filtro" style="flex:1 1 180px">
+              <label for="av-antiguedad">Publicado hace</label>
+              <input type="text" id="av-antiguedad" name="antiguedad"
+                     placeholder="6 días" aria-describedby="ayuda-antiguedad">
+            </div>
+            <div class="filtro" style="flex:1 1 180px">
+              <label for="av-ubicacion">Ubicación</label>
+              <input type="text" id="av-ubicacion" name="ubicacion"
+                     placeholder="Buenos Aires">
+            </div>
+          </div>
+          <p class="ayuda" id="ayuda-antiguedad">
+            Copiá lo que dice el portal: «6 días», «1 mes», «3 semanas». Se guarda
+            como fecha aproximada y en pantalla se ve con un <code>~</code>, porque
+            ese número después va en un mail al cliente.
+          </p>
+          <div class="campo">
+            <label for="av-url">Link del aviso</label>
+            <input type="url" id="av-url" name="url"
+                   placeholder="https://linkedin.com/jobs/view/...">
+          </div>
+          <div class="campo">
+            <label for="av-descripcion">Texto del aviso</label>
+            <textarea id="av-descripcion" name="descripcion" rows="4"
+                      aria-describedby="ayuda-desc"></textarea>
+            <p class="ayuda" id="ayuda-desc">
+              Opcional, pero es lo que más suma: de ahí salen los mails de contacto
+              y es lo que lee el asistente para decirte si conviene.
+            </p>
+          </div>
+          <button class="btn" type="submit">Cargar la búsqueda</button>
+        </form>
+      </details>
     </section>
 
     <section class="panel" aria-labelledby="t-conversacion">
@@ -290,7 +360,19 @@
     </section>
 
     <section class="panel" aria-labelledby="t-contactos">
-      <h2 id="t-contactos">Contactos</h2>
+      <div class="encabezado-panel">
+        <h2 id="t-contactos">Contactos</h2>
+        {% if hunter_listo and lead.empresa.dominio %}
+        <form method="post" action="/leads/{{ lead.id }}/contactos">
+          <button class="btn btn-fantasma" type="submit">Buscar en Hunter</button>
+        </form>
+        {% endif %}
+      </div>
+      {% if hunter_listo and not lead.empresa.dominio %}
+        <p class="ayuda">
+          Sin dominio no hay dónde buscar. Cargalo y después probá con Hunter.
+        </p>
+      {% endif %}
       {% if lead.empresa.contactos %}
         <ul class="timeline">
         {% for c in lead.empresa.contactos %}

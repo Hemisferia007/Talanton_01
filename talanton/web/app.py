@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from starlette.middleware.sessions import SessionMiddleware
 
-from .. import arranque, auth, services
+from .. import arranque, auth, avisos_manuales, services
 from ..apollo import busqueda as apollo_busqueda
 from ..apollo import cliente as apollo_cliente
 from ..apollo import industrias as apollo_industrias
@@ -30,6 +30,7 @@ from ..config import (
     COOKIES_SEGURAS,
     apify_configurado,
     apollo_configurado,
+    hunter_configurado,
     LIMITE_ENVIOS_DIARIOS,
     PAISES,
     PAIS_NOMBRE,
@@ -42,6 +43,8 @@ from ..config import (
 from ..correo import servicio as correo
 from ..correo import gmail as api_gmail
 from ..enriquecer import objetivo_para
+from ..enriquecer import contactos_hunter
+from ..enriquecer.hunter import ErrorHunter
 from ..ingest import fuentes as fuentes_db
 from ..db import db_dependency, init_db
 from ..models import (
@@ -55,6 +58,7 @@ from ..models import (
     Objetivo,
     Seniority,
     Usuario,
+    Vacante,
 )
 
 log_web = logging.getLogger("talanton.web")
@@ -274,6 +278,9 @@ def leads(
         _contexto(
             request,
             leads=resultados,
+            hunter_listo=hunter_configurado(),
+            ok=request.query_params.get("ok"),
+            error=request.query_params.get("error"),
             filtros={
                 "q": q or "",
                 "estado": estado or "",
@@ -283,6 +290,32 @@ def leads(
             },
         ),
     )
+
+
+@app.post("/contactos/buscar")
+def buscar_contactos_en_masa(
+    limite: int = Form(10), db: Session = Depends(db_dependency)
+):
+    """Busca contactos para los leads que no tienen ninguno, de mayor score a menor.
+
+    El tope existe porque el plan gratuito de Hunter trae 25 búsquedas por mes:
+    una corrida sobre 45 empresas se las comería todas de un saque.
+    """
+    from urllib.parse import quote
+
+    resumen = contactos_hunter.buscar_faltantes(db, limite=max(1, min(25, limite)))
+    if resumen.error and not resumen.contactos_nuevos:
+        return RedirectResponse(f"/leads?error={quote(resumen.error)}", status_code=303)
+
+    aviso = (
+        f"{resumen.contactos_nuevos} contactos nuevos en "
+        f"{resumen.empresas_consultadas} empresas"
+    )
+    if resumen.decisores:
+        aviso += f", {resumen.decisores} identificados como decisor"
+    if resumen.sin_resultados:
+        aviso += f". Sin mails publicados: {len(resumen.sin_resultados)}"
+    return RedirectResponse(f"/leads?ok={quote(aviso)}", status_code=303)
 
 
 @app.get("/leads/{lead_id}", response_class=HTMLResponse)
@@ -304,6 +337,8 @@ def lead_detalle(request: Request, lead_id: int, db: Session = Depends(db_depend
             redaccion=correo.borrador(db, lead, cuenta=cuentas[0] if cuentas else None),
             gmail_listo=gmail_configurado(),
             asistente_listo=asistente_disponible(),
+            hunter_listo=hunter_configurado(),
+            contactos_nuevos=request.query_params.get("contactos"),
             # Una opinión guardada contra un lead que ya cambió es peor que
             # ninguna: se muestra igual, pero avisada.
             opinion_vieja=ia_conviene.desactualizada(lead),
@@ -325,6 +360,72 @@ def pedir_opinion(lead_id: int, db: Session = Depends(db_dependency)):
 
         return RedirectResponse(f"/leads/{lead_id}?error={quote(str(exc))}", status_code=303)
     return RedirectResponse(f"/leads/{lead_id}#t-opinion", status_code=303)
+
+
+@app.post("/leads/{lead_id}/aviso")
+def cargar_aviso(
+    lead_id: int,
+    titulo: str = Form(...),
+    antiguedad: str = Form(""),
+    ubicacion: str = Form(""),
+    url: str = Form(""),
+    descripcion: str = Form(""),
+    db: Session = Depends(db_dependency),
+):
+    """Carga a mano una búsqueda que el usuario vio publicada.
+
+    Para las empresas que sólo publican en LinkedIn, es la única vía de que el
+    sistema sepa lo que está a la vista de cualquiera.
+    """
+    lead = _lead_o_404(db, lead_id)
+    try:
+        avisos_manuales.cargar(
+            db,
+            lead.empresa,
+            titulo=titulo,
+            antiguedad=antiguedad,
+            ubicacion=ubicacion,
+            url=url,
+            descripcion=descripcion,
+        )
+        db.commit()
+    except avisos_manuales.ErrorAviso as exc:
+        from urllib.parse import quote
+
+        return RedirectResponse(f"/leads/{lead_id}?error={quote(str(exc))}", status_code=303)
+    return RedirectResponse(f"/leads/{lead_id}?aviso=1", status_code=303)
+
+
+@app.post("/leads/{lead_id}/avisos/{vacante_id}/cerrar")
+def cerrar_aviso(lead_id: int, vacante_id: int, db: Session = Depends(db_dependency)):
+    """Marca cerrada una búsqueda que ya no está publicada."""
+    lead = _lead_o_404(db, lead_id)
+    vacante = db.get(Vacante, vacante_id)
+    if vacante is None or vacante.empresa_id != lead.empresa_id:
+        raise HTTPException(status_code=404, detail="Aviso no encontrado")
+    avisos_manuales.cerrar(db, vacante)
+    db.commit()
+    return RedirectResponse(f"/leads/{lead_id}", status_code=303)
+
+
+@app.post("/leads/{lead_id}/contactos")
+def buscar_contactos(lead_id: int, db: Session = Depends(db_dependency)):
+    """Busca en Hunter la persona de RRHH de esta empresa. Gasta una búsqueda."""
+    lead = _lead_o_404(db, lead_id)
+    from urllib.parse import quote
+
+    try:
+        nuevos, _ = contactos_hunter.buscar_una(db, lead.empresa)
+        db.commit()
+    except ErrorHunter as exc:
+        return RedirectResponse(f"/leads/{lead_id}?error={quote(str(exc))}", status_code=303)
+
+    if not nuevos:
+        return RedirectResponse(
+            f"/leads/{lead_id}?error={quote('Hunter no encontró mails publicados para este dominio.')}",
+            status_code=303,
+        )
+    return RedirectResponse(f"/leads/{lead_id}?contactos={nuevos}", status_code=303)
 
 
 @app.post("/leads/{lead_id}/nota")

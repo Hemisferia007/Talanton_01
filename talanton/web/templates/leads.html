@@ -8,7 +8,25 @@
     <h1>Leads</h1>
     <p class="subtitulo">{{ leads|length }} empresa{{ 's' if leads|length != 1 }} en la base.</p>
   </div>
+  {% if hunter_listo %}
+  {# Sin contacto no hay a quién escribirle, por más alto que sea el score.
+     Va acá arriba porque es el paso que desbloquea todo lo demás. #}
+  <form method="post" action="/contactos/buscar">
+    <input type="hidden" name="limite" value="10">
+    <button class="btn" type="submit">Buscar contactos de RRHH</button>
+  </form>
+  {% endif %}
 </div>
+
+{% if ok %}<p class="alerta alerta-ok" role="status">{{ ok }}</p>{% endif %}
+{% if error %}<p class="alerta alerta-error" role="alert">{{ error }}</p>{% endif %}
+{% if hunter_listo %}
+  <p class="ayuda" style="margin-bottom:var(--s4)">
+    Busca en las 10 empresas de mayor score que todavía no tienen ningún mail
+    cargado, usando el dominio de cada una. Las que ya tienen contacto se saltean,
+    para no gastar búsquedas al pedo.
+  </p>
+{% endif %}
 
 <form class="filtros" method="get" action="/leads" role="search">
   {{ filtro_texto('q', 'Buscar', filtros.q, 'Empresa, industria o dominio', '230px') }}
