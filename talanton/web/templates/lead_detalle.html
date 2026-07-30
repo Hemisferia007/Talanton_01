@@ -23,6 +23,10 @@
   </div>
 </div>
 
+{% if ok %}<p class="alerta alerta-ok" role="status">{{ ok }}</p>{% endif %}
+{% if request.query_params.get('error') %}
+  <p class="alerta alerta-error" role="alert">{{ request.query_params.get('error') }}</p>
+{% endif %}
 {% if contactos_nuevos %}
   <p class="alerta alerta-ok" role="status">
     {{ contactos_nuevos }} contacto{{ 's' if contactos_nuevos != '1' }} encontrado{{ 's' if contactos_nuevos != '1' }}.
@@ -360,6 +364,53 @@
       </form>
     </section>
 
+    <section class="panel" aria-labelledby="t-empresa">
+      <h2 id="t-empresa">Datos de la empresa</h2>
+      <p class="subtitulo">
+        Dotación e industria pesan el 40% del score. Con «Sin datos» el número de
+        arriba no dice mucho.
+      </p>
+      <form method="post" action="/leads/{{ lead.id }}/empresa">
+        <div class="campo">
+          <label for="e-dominio">Dominio</label>
+          <input type="text" id="e-dominio" name="dominio"
+                 value="{{ lead.empresa.dominio or '' }}" placeholder="empresa.com.ar"
+                 aria-describedby="ayuda-dominio">
+          <p class="ayuda" id="ayuda-dominio">
+            Sin esto no se puede buscar contactos ni deduplicar bien la empresa.
+          </p>
+        </div>
+        <div class="campo">
+          <label for="e-dotacion">Empleados</label>
+          <input type="number" id="e-dotacion" name="dotacion" min="1"
+                 value="{{ lead.empresa.dotacion_estimada or '' }}">
+        </div>
+        <div class="campo">
+          <label for="e-industria">Industria</label>
+          <input type="text" id="e-industria" name="industria"
+                 value="{{ lead.empresa.industria or '' }}">
+        </div>
+        <div class="campo">
+          <label for="e-ciudad">Ciudad</label>
+          <input type="text" id="e-ciudad" name="ciudad"
+                 value="{{ lead.empresa.ciudad or '' }}">
+        </div>
+        <div class="campo">
+          <label for="e-ta">
+            <input type="checkbox" id="e-ta" name="tiene_equipo_ta" value="1"
+                   {{ 'checked' if lead.empresa.tiene_equipo_ta }}>
+            Tiene equipo de selección interno
+          </label>
+          <p class="ayuda">
+            Si lo tiene, compite con vos por el mandato y el score baja. Vale la
+            pena marcarlo cuando lo confirmás: un dato equivocado acá te hace
+            perder tiempo en la empresa equivocada.
+          </p>
+        </div>
+        <button class="btn" type="submit">Guardar y recalcular</button>
+      </form>
+    </section>
+
     <section class="panel" aria-labelledby="t-contactos">
       <div class="encabezado-panel">
         <h2 id="t-contactos">Contactos</h2>
@@ -384,11 +435,64 @@
             <div class="cuando">
               {{ c.cargo or 'Sin cargo' }}{% if c.email %} ·
               <a href="mailto:{{ c.email }}">{{ c.email }}</a>{% endif %}
+              {% if c.telefono %} · {{ c.telefono }}{% endif %}
+              {% if c.linkedin_url %} ·
+              <a href="{{ c.linkedin_url }}" target="_blank" rel="noopener">LinkedIn</a>{% endif %}
+            </div>
+            <div style="display:flex; gap:var(--s2); margin-top:var(--s1)">
+              {% if not c.es_decisor %}
+              <form method="post" action="/leads/{{ lead.id }}/contactos/{{ c.id }}/decisor">
+                <button class="btn btn-fantasma mini" type="submit">Marcar decisor</button>
+              </form>
+              {% endif %}
+              {# Borrar tiene que estar a mano: si alguien pide la baja de sus
+                 datos, no puede depender de que haya alguien con acceso a la base. #}
+              <form method="post" action="/leads/{{ lead.id }}/contactos/{{ c.id }}/borrar"
+                    onsubmit="return confirm('¿Borrar a {{ c.nombre }}?')">
+                <button class="btn btn-fantasma mini" type="submit">Borrar</button>
+              </form>
             </div>
           </li>
         {% endfor %}
         </ul>
       {% endif %}
+
+      <details class="registrar-respuesta" {{ 'open' if not lead.empresa.contactos }}>
+        <summary>Agregar un contacto</summary>
+        <form method="post" action="/leads/{{ lead.id }}/contactos/nuevo">
+          <div class="campo">
+            <label for="c-nombre">Nombre</label>
+            <input type="text" id="c-nombre" name="nombre" required placeholder="Marcela Fernández">
+          </div>
+          <div class="campo">
+            <label for="c-cargo">Cargo</label>
+            <input type="text" id="c-cargo" name="cargo" placeholder="Gerenta de RRHH">
+          </div>
+          <div class="campo">
+            <label for="c-email">Email</label>
+            <input type="email" id="c-email" name="email" placeholder="mfernandez@empresa.com">
+          </div>
+          <div class="campo">
+            <label for="c-telefono">Teléfono</label>
+            <input type="text" id="c-telefono" name="telefono">
+          </div>
+          <div class="campo">
+            <label for="c-linkedin">LinkedIn</label>
+            <input type="url" id="c-linkedin" name="linkedin_url">
+          </div>
+          <div class="campo">
+            <label for="c-decisor">
+              <input type="checkbox" id="c-decisor" name="es_decisor" value="1">
+              Es quien decide contratar una consultora
+            </label>
+            <p class="ayuda">
+              Sólo uno por empresa: si marcás este, el anterior deja de serlo. Dos
+              decisores es lo mismo que ninguno a la hora de saber a quién escribirle.
+            </p>
+          </div>
+          <button class="btn" type="submit">Cargar contacto</button>
+        </form>
+      </details>
 
       {% if objetivo and not lead.empresa.contactos|selectattr('es_decisor')|list %}
       {# Sin decisor identificado, lo útil no es decir "falta el contacto" sino

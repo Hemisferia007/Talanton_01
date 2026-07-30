@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from starlette.middleware.sessions import SessionMiddleware
 
-from .. import arranque, auth, avisos_manuales, services
+from .. import arranque, auth, avisos_manuales, fichas, services
 from ..apollo import busqueda as apollo_busqueda
 from ..apollo import cliente as apollo_cliente
 from ..apollo import industrias as apollo_industrias
@@ -339,6 +339,7 @@ def lead_detalle(request: Request, lead_id: int, db: Session = Depends(db_depend
             asistente_listo=asistente_disponible(),
             hunter_listo=hunter_configurado(),
             contactos_nuevos=request.query_params.get("contactos"),
+            ok=request.query_params.get("ok"),
             # Una opinión guardada contra un lead que ya cambió es peor que
             # ninguna: se muestra igual, pero avisada.
             opinion_vieja=ia_conviene.desactualizada(lead),
@@ -426,6 +427,96 @@ def buscar_contactos(lead_id: int, db: Session = Depends(db_dependency)):
             status_code=303,
         )
     return RedirectResponse(f"/leads/{lead_id}?contactos={nuevos}", status_code=303)
+
+
+@app.post("/leads/{lead_id}/contactos/nuevo")
+def agregar_contacto(
+    lead_id: int,
+    nombre: str = Form(...),
+    cargo: str = Form(""),
+    email: str = Form(""),
+    telefono: str = Form(""),
+    linkedin_url: str = Form(""),
+    es_decisor: str | None = Form(None),
+    db: Session = Depends(db_dependency),
+):
+    """Carga un contacto a mano. Es como llega la mitad de la información real."""
+    lead = _lead_o_404(db, lead_id)
+    try:
+        fichas.agregar_contacto(
+            db,
+            lead.empresa,
+            nombre=nombre,
+            cargo=cargo,
+            email=email,
+            telefono=telefono,
+            linkedin_url=linkedin_url,
+            es_decisor=es_decisor == "1",
+        )
+        db.commit()
+    except fichas.ErrorFicha as exc:
+        return _volver_al_lead(lead_id, error=str(exc))
+    return _volver_al_lead(lead_id, ok="Contacto cargado.")
+
+
+@app.post("/leads/{lead_id}/contactos/{contacto_id}/decisor")
+def marcar_decisor(lead_id: int, contacto_id: int, db: Session = Depends(db_dependency)):
+    lead = _lead_o_404(db, lead_id)
+    try:
+        fichas.marcar_decisor(db, lead.empresa, contacto_id)
+        db.commit()
+    except fichas.ErrorFicha as exc:
+        return _volver_al_lead(lead_id, error=str(exc))
+    return _volver_al_lead(lead_id, ok="Decisor actualizado.")
+
+
+@app.post("/leads/{lead_id}/contactos/{contacto_id}/borrar")
+def borrar_contacto(lead_id: int, contacto_id: int, db: Session = Depends(db_dependency)):
+    """Borrar tiene que poder hacerse en el momento: si alguien pide la baja de
+    sus datos, no puede depender de que haya alguien con acceso a la base."""
+    lead = _lead_o_404(db, lead_id)
+    try:
+        fichas.borrar_contacto(db, lead.empresa, contacto_id)
+        db.commit()
+    except fichas.ErrorFicha as exc:
+        return _volver_al_lead(lead_id, error=str(exc))
+    return _volver_al_lead(lead_id, ok="Contacto borrado.")
+
+
+@app.post("/leads/{lead_id}/empresa")
+def actualizar_empresa(
+    lead_id: int,
+    dominio: str = Form(""),
+    industria: str = Form(""),
+    dotacion: str = Form(""),
+    ciudad: str = Form(""),
+    tiene_equipo_ta: str | None = Form(None),
+    db: Session = Depends(db_dependency),
+):
+    """Corrige los datos de la empresa. Dotación e industria son el 40% del score."""
+    lead = _lead_o_404(db, lead_id)
+    try:
+        fichas.actualizar_empresa(
+            db,
+            lead.empresa,
+            dominio=dominio,
+            industria=industria,
+            dotacion=dotacion,
+            ciudad=ciudad,
+            tiene_equipo_ta=tiene_equipo_ta == "1",
+        )
+        db.commit()
+    except fichas.ErrorFicha as exc:
+        return _volver_al_lead(lead_id, error=str(exc))
+    return _volver_al_lead(lead_id, ok="Datos de la empresa actualizados. Score recalculado.")
+
+
+def _volver_al_lead(lead_id: int, *, ok: str | None = None, error: str | None = None):
+    from urllib.parse import quote
+
+    if error:
+        return RedirectResponse(f"/leads/{lead_id}?error={quote(error)}", status_code=303)
+    return RedirectResponse(f"/leads/{lead_id}?ok={quote(ok or '')}", status_code=303)
 
 
 @app.post("/leads/{lead_id}/nota")
