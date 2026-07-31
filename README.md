@@ -152,14 +152,18 @@ desde el día uno, y una alarma que siempre suena deja de ser una alarma.
 no hay a quién escribirle— tiene tres vías, de la más barata a la más cara:
 [`docs/contactos.md`](docs/contactos.md).
 
-1. **Hunter.io** (`talanton/enriquecer/hunter.py`) — busca la persona de RRHH por el
+1. **El sitio de la empresa** (`talanton/enriquecer/sitio.py`) — recorre unas pocas
+   páginas con **Scrapling** y junta los mails publicados. Gratis, sin tope y con la
+   mejor procedencia posible: la dirección la publicó la propia empresa. Sólo acepta
+   mails del dominio de la empresa —el del pie suele ser de la agencia que hizo el
+   sitio— y se detiene a las cinco páginas: si no está ahí, no está publicado.
+2. **Hunter.io** (`talanton/enriquecer/hunter.py`) — busca la persona de RRHH por el
    dominio de la empresa. **Su API anda en el plan gratuito**: 25 búsquedas al mes.
    Un botón en *Leads* resuelve las 10 empresas de mayor score que todavía no tienen
    mail; las que ya tienen se saltean. Descarta lo de baja confianza —un rebote cuesta
    reputación de dominio— y nunca marca un `rrhh@` como decisor.
-2. **Del propio aviso**, que es la fuente de mejor calidad legal que existe: sale de
-   lo que la empresa publicó para que la contacten por trabajo.
-3. **A mano**, desde la ficha del lead. Es como llega la mitad de la información real.
+3. **Del propio aviso**, cuando la descripción trae la dirección.
+4. **A mano**, desde la ficha del lead. Es como llega la mitad de la información real.
 
 **Enriquecimiento**: `python -m talanton.cli enriquecer` busca emails en los avisos ya
 cargados, distingue buzones de área (`rrhh@`) de personas, verifica que el dominio
@@ -238,7 +242,7 @@ talanton/
   scoring.py      Los cuatro ejes y sus razones
   services.py     Upserts, cierre de vacantes, kanban, consultas
   ingest/         Conectores, corrida diaria y descubridor de fuentes
-  enriquecer/     Contactos desde avisos y desde Hunter, verificación y regla de decisor
+  enriquecer/     Contactos desde avisos, del sitio y de Hunter; verificación y decisor
   correo/         Gmail: OAuth, cifrado de tokens, plantillas y envío
   arranque.py     El primer arranque encadenado, en un solo paso
   asistente/      Claude: expediente del lead, «¿conviene?» y redacción del hilo
@@ -248,7 +252,7 @@ talanton/
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            442 tests: dominio, web, accesibilidad, correo, asistente, cola, auth, ingesta y enriquecimiento
+tests/            449 tests: dominio, web, accesibilidad, correo, asistente, cola, auth, ingesta y enriquecimiento
 docs/             Primera búsqueda, estrategia, Gmail, LinkedIn/Apify, contactos, asistente y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```

@@ -431,6 +431,25 @@ def buscar_contactos(lead_id: int, db: Session = Depends(db_dependency)):
     return RedirectResponse(f"/leads/{lead_id}?contactos={nuevos}", status_code=303)
 
 
+@app.post("/leads/{lead_id}/contactos/sitio")
+def buscar_contactos_en_el_sitio(lead_id: int, db: Session = Depends(db_dependency)):
+    """Busca mails en el sitio de la empresa. Gratis y sin límite de uso."""
+    from ..enriquecer import servicio as mod_enriquecer
+
+    lead = _lead_o_404(db, lead_id)
+    if not lead.empresa.dominio:
+        return _volver_al_lead(lead_id, error="Cargá el dominio de la empresa primero.")
+
+    nuevos, _ = mod_enriquecer.enriquecer_empresa(db, lead.empresa)
+    db.commit()
+    if not nuevos:
+        return _volver_al_lead(
+            lead_id,
+            error=f"No se encontraron mails publicados en {lead.empresa.dominio}.",
+        )
+    return _volver_al_lead(lead_id, ok=f"{nuevos} contacto(s) encontrados en el sitio.")
+
+
 @app.post("/leads/{lead_id}/contactos/nuevo")
 def agregar_contacto(
     lead_id: int,

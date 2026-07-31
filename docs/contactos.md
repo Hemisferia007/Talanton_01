@@ -5,6 +5,29 @@ porque no sabés el mail de nadie.
 
 Hay tres vías y conviene usarlas en este orden, de la más barata a la más cara.
 
+## 0. El sitio de la empresa — gratis, ilimitada y la de mejor procedencia
+
+El botón **Buscar en su web**, en el panel de Contactos de cada lead.
+
+Talanton recorre unas pocas páginas del sitio —home, contacto, nosotros, equipo,
+trabajá con nosotros— y junta los mails publicados. Es la fuente de mejor calidad
+legal que existe: la dirección la publicó la propia empresa, en su propia web, y
+la procedencia es la URL misma.
+
+El parseo lo hace **Scrapling**, que es para lo que está: HTML institucional que
+cambia seguido y hay que leer igual. Si no está instalado se usa `httpx` y funciona
+igual para la enorme mayoría de los sitios.
+
+Dos límites deliberados:
+
+- **Cinco páginas por empresa**, no un crawl. Si el mail no está ahí, no está
+  publicado, y seguir es golpear un sitio ajeno de más.
+- **Sólo mails del dominio de la empresa.** El `hola@agenciaweb.com` del pie es de
+  quien hizo el sitio, no de quien queremos contactar.
+
+No cuesta nada y no tiene tope: probala siempre antes que Hunter.
+
+
 ## 1. Hunter.io — la que anda gratis y automatizada
 
 Hunter busca sobre el **dominio** de una empresa —`baufest.com`— y devuelve las
@@ -65,7 +88,8 @@ donde ya hay avisos cargados, y muchos avisos no traen mail.
 
 | Situación | Vía |
 |---|---|
-| Tenés el dominio y querés al de RRHH | **Hunter** |
+| Tenés el dominio | **Su propia web** — gratis, sin tope |
+| La web no tenía nada y querés al de RRHH | **Hunter** |
 | Ya tenés avisos cargados con texto | **`cli enriquecer`** |
 | La empresa no tiene nada publicado | LinkedIn a mano, o descartala |
 

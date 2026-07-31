@@ -12,6 +12,7 @@ from ..models import Contacto, Empresa, Vacante
 from ..services import perfil, recalcular_lead
 from . import contactos as mod_contactos
 from . import decisor
+from . import sitio as mod_sitio
 
 log = logging.getLogger("talanton.enriquecer")
 
@@ -36,11 +37,26 @@ def _texto_de_las_vacantes(empresa: Empresa) -> tuple[str, str | None]:
 
 
 def enriquecer_empresa(
-    session: Session, empresa: Empresa, *, verificar_dns: bool = True
+    session: Session,
+    empresa: Empresa,
+    *,
+    verificar_dns: bool = True,
+    mirar_sitio: bool = True,
 ) -> tuple[int, bool]:
-    """Busca contactos en los avisos de la empresa. Devuelve (nuevos, marcó_decisor)."""
+    """Busca contactos de la empresa. Devuelve (nuevos, marcó_decisor).
+
+    Dos fuentes, en orden de calidad: el texto de sus propios avisos —donde la
+    dirección está puesta para que le escriban por trabajo— y después el sitio
+    web. Las dos son gratis y de procedencia auditable.
+    """
     texto, fuente_url = _texto_de_las_vacantes(empresa)
     hallados = mod_contactos.extraer_emails(texto, fuente_url)
+
+    # El sitio sólo si los avisos no alcanzaron: bajar cinco páginas de una web
+    # ajena para confirmar un mail que ya tenemos es golpearla al pedo.
+    if not hallados and mirar_sitio and empresa.dominio:
+        hallados = mod_sitio.buscar(empresa.dominio).hallados
+
     if not hallados:
         return 0, False
 

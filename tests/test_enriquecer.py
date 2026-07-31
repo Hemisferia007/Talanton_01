@@ -224,3 +224,122 @@ def test_no_repite_candidatos():
 def test_descarta_slugs_demasiado_cortos():
     """Un slug de dos letras pega contra cualquier board ajeno."""
     assert all(len(s) >= 3 for s in candidatos_de_slug("AB", "ab.com"))
+
+
+# --- Mails en el sitio de la empresa -----------------------------------------
+#
+# La vía gratis e ilimitada: la dirección está publicada por la propia empresa
+# en su propia web. Antes el enriquecedor sólo leía avisos ya guardados, así que
+# una empresa con `contacto@` visible en su home quedaba sin contacto.
+
+HTML_CON_MAIL = """
+<html><body>
+  <footer>
+    Escribinos a <a href="mailto:rrhh@andeslog.com.ar">rrhh@andeslog.com.ar</a>
+    · Sitio hecho por <a href="mailto:hola@agenciaweb.com">hola@agenciaweb.com</a>
+  </footer>
+</body></html>
+"""
+
+
+def test_solo_trae_los_mails_del_dominio_de_la_empresa(monkeypatch):
+    """El mail del pie suele ser de la agencia que hizo el sitio, no de quien
+    queremos contactar."""
+    from talanton.enriquecer import sitio
+
+    monkeypatch.setattr(sitio, "_traer", lambda url: HTML_CON_MAIL)
+    resultado = sitio.buscar("andeslog.com.ar")
+
+    direcciones = {h.direccion for h in resultado.hallados}
+    assert direcciones == {"rrhh@andeslog.com.ar"}
+
+
+def test_un_subdominio_cuenta_como_de_la_empresa():
+    from talanton.enriquecer.sitio import _mismo_dominio
+
+    assert _mismo_dominio("mail.andeslog.com.ar", "andeslog.com.ar") is True
+    assert _mismo_dominio("andeslog.com.ar", "otracosa.com") is False
+
+
+def test_no_visita_mas_paginas_que_el_tope(monkeypatch):
+    """Golpear un sitio ajeno de más no aporta: si no está en las primeras, no
+    está publicado."""
+    from talanton.enriquecer import sitio
+
+    visitadas = []
+
+    def falso(url):
+        visitadas.append(url)
+        return "<html></html>"
+
+    monkeypatch.setattr(sitio, "_traer", falso)
+    sitio.buscar("ejemplo.com", tope_paginas=3)
+    assert len(visitadas) == 3
+
+
+def test_un_sitio_caido_no_es_una_excepcion(monkeypatch):
+    """Una empresa sin web es un caso normal, no un error del sistema."""
+    from talanton.enriquecer import sitio
+
+    monkeypatch.setattr(sitio, "_traer", lambda url: None)
+    resultado = sitio.buscar("nohay.com")
+
+    assert resultado.hallados == []
+    assert resultado.error and "en línea" in resultado.error
+
+
+def test_sin_dominio_avisa_en_vez_de_intentar():
+    from talanton.enriquecer import sitio
+
+    assert sitio.buscar("").error is not None
+
+
+def test_el_enriquecedor_cae_al_sitio_cuando_los_avisos_no_traen_mail(
+    session, monkeypatch
+):
+    from talanton.enriquecer import servicio, sitio
+    from talanton.models import Empresa
+    from talanton.normalize import normalizar_nombre_empresa
+
+    empresa = Empresa(
+        nombre="Andes Logística",
+        nombre_normalizado=normalizar_nombre_empresa("Andes Logística"),
+        dominio="andeslog.com.ar",
+    )
+    session.add(empresa)
+    session.flush()
+
+    monkeypatch.setattr(sitio, "_traer", lambda url: HTML_CON_MAIL)
+    nuevos, _ = servicio.enriquecer_empresa(session, empresa, verificar_dns=False)
+
+    assert nuevos == 1
+    assert empresa.contactos[0].email == "rrhh@andeslog.com.ar"
+    # La procedencia es la URL donde se encontró.
+    assert "andeslog.com.ar" in empresa.contactos[0].fuente_url
+
+
+def test_no_golpea_el_sitio_si_el_aviso_ya_tenia_mail(session, monkeypatch):
+    """Bajar cinco páginas de una web ajena para confirmar algo que ya sabemos
+    es golpearla al pedo."""
+    from talanton.enriquecer import servicio, sitio
+    from talanton.models import Empresa, Vacante
+    from talanton.normalize import normalizar_nombre_empresa
+
+    empresa = Empresa(
+        nombre="Con Aviso",
+        nombre_normalizado=normalizar_nombre_empresa("Con Aviso"),
+        dominio="conaviso.com",
+    )
+    empresa.vacantes.append(
+        Vacante(titulo="Dev", rol_normalizado="developer", fuente="lever",
+                external_id="x-1", descripcion="Mandá tu CV a empleos@conaviso.com")
+    )
+    session.add(empresa)
+    session.flush()
+
+    def no_deberia(url):
+        raise AssertionError("no tenía que visitar el sitio")
+
+    monkeypatch.setattr(sitio, "_traer", no_deberia)
+    nuevos, _ = servicio.enriquecer_empresa(session, empresa, verificar_dns=False)
+    assert nuevos == 1

@@ -414,10 +414,18 @@
     <section class="panel" aria-labelledby="t-contactos">
       <div class="encabezado-panel">
         <h2 id="t-contactos">Contactos</h2>
-        {% if hunter_listo and lead.empresa.dominio %}
-        <form method="post" action="/leads/{{ lead.id }}/contactos">
-          <button class="btn btn-fantasma" type="submit">Buscar en Hunter</button>
-        </form>
+        {% if lead.empresa.dominio %}
+        <div style="display:flex; gap:var(--s2)">
+          {# La gratis primero. Hunter cuesta créditos y son 25 por mes. #}
+          <form method="post" action="/leads/{{ lead.id }}/contactos/sitio">
+            <button class="btn btn-fantasma" type="submit">Buscar en su web</button>
+          </form>
+          {% if hunter_listo %}
+          <form method="post" action="/leads/{{ lead.id }}/contactos">
+            <button class="btn btn-fantasma" type="submit">Buscar en Hunter</button>
+          </form>
+          {% endif %}
+        </div>
         {% endif %}
       </div>
       {% if hunter_listo and not lead.empresa.dominio %}
