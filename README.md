@@ -46,15 +46,14 @@ que son pantallas de alta y configuración que se usan una vez.
 
 | Pantalla | Qué muestra |
 |---|---|
-| **Panel** | Métricas, leads nuevos por encima del umbral y búsquedas que se les están estirando |
+| **Panel** | La cola del día: a quién escribirle, a quién insistirle y a quién le falta contacto |
 | **Leads** | Listado filtrable por estado, país, score y texto, con la señal principal de cada uno |
 | **Tablero** | Kanban con drag & drop: Nuevo → Contactado → En conversación → Reunión → Propuesta → Ganado/Perdido |
 | **Avisos** | Todas las vacantes detectadas, ordenadas por días abiertas |
 | **Cargar empresas** | El arranque entero en un paso: pegás una lista y salen leads puntuados |
 | *Más →* **Mi empresa** | Datos de la consultora, el ICP que alimenta el eje de *fit*, y las casillas de Gmail |
 | *Más →* **Fuentes** | Empresas a vigilar y de dónde se leen sus avisos, con el resultado de cada corrida |
-| *Más →* **Importar** | Pegás cualquier lista (Excel, Apollo, Hunter, contactos viejos) sin correr la cadena entera |
-| *Más →* **Buscar** | Empresas y decisores desde Apollo, filtrando por cargo, país, industria y tamaño |
+| *Más →* **Importar** | Pegás cualquier lista (Excel, exportaciones, contactos viejos) sin correr la cadena entera |
 | *Más →* **Señales** | Cola de revisión de rondas de inversión y expansiones detectadas en posts |
 | Dentro del lead | **Asistente**: «¿conviene contactarlo?» y borradores que contestan el hilo |
 
@@ -114,20 +113,18 @@ No toca el score: el score sale de los cuatro ejes y es lo que el comercial le
 puede explicar al cliente. El asistente lee lo que los ejes no miran —el texto— y
 queda al lado, fechado. Su respuesta más valiosa suele ser *«no conviene»*.
 
-**Buscar decisores** (opcional, requiere plan pago de Apollo — ver
-[`docs/apollo.md`](docs/apollo.md)): filtrás por cargo, país, industria y tamaño y
-traés las empresas con la persona que firma. Buscar es gratis y los emails vienen
-tapados; destaparlos consume créditos y es un botón aparte, para poder ajustar los
-filtros sin gastar.
+**El panel es una cola de trabajo, no un tablero de métricas.** Un número no dice
+qué hacer; una fila con un botón sí. Tres montones, cada uno con una sola acción
+posible por fila:
 
-Sin plan pago no hace falta: la exportación CSV de Apollo entra por **Importar** y
-termina idéntica en la base. Los encabezados que rompen un importador genérico
-—`First Name`+`Last Name`, `# Employees`, `City` contra `Company City`— ya están
-contemplados.
+- **Escribirles hoy** — tienen mail y nunca los contactaste, de mayor score a menor.
+- **Volver a escribirles** — les escribiste hace 5 días o más y no contestaron. Ahí
+  está la mitad de las respuestas: casi nadie contesta al primer mail.
+- **Falta el contacto** — buenas empresas sin nadie a quien escribirle.
 
-Apollo dice **quién** decide; los avisos dicen **cuándo** conviene escribirle. Lo que
-rinde es usar los dos: traés las empresas de tu rubro, las dejás en Fuentes, y cuando
-a una se le estira una búsqueda el score la sube sola con el decisor ya cargado.
+El botón abre la ventana de redacción **ya escrita y ya abierta** —«Insistir» carga
+directamente la plantilla de seguimiento— y al enviar vuelve al panel, porque el
+próximo mail del día está ahí y no en la ficha del que se acaba de mandar.
 
 **Ingesta** en tres carriles, del más barato al más caro:
 
@@ -160,8 +157,9 @@ no hay a quién escribirle— tiene tres vías, de la más barata a la más cara
    Un botón en *Leads* resuelve las 10 empresas de mayor score que todavía no tienen
    mail; las que ya tienen se saltean. Descarta lo de baja confianza —un rebote cuesta
    reputación de dominio— y nunca marca un `rrhh@` como decisor.
-2. **Apollo por la web** + *Importar*, cuando hace falta volumen.
-3. **Del propio aviso**, que es la fuente de mejor calidad legal que existe.
+2. **Del propio aviso**, que es la fuente de mejor calidad legal que existe: sale de
+   lo que la empresa publicó para que la contacten por trabajo.
+3. **A mano**, desde la ficha del lead. Es como llega la mitad de la información real.
 
 **Enriquecimiento**: `python -m talanton.cli enriquecer` busca emails en los avisos ya
 cargados, distingue buzones de área (`rrhh@`) de personas, verifica que el dominio
@@ -170,15 +168,13 @@ resuelva, y marca al decisor. En el lead, cuando todavía no hay decisor, la fic
 una de 500 el líder de selección.
 
 **Procedencia siempre guardada.** Cada contacto lleva su `fuente_url` —el aviso del
-que salió, el LinkedIn de la persona, o `apollo.io:<id>`— para poder auditarlo y
+que salió, el LinkedIn de la persona, la página donde Hunter lo encontró— para auditarlo y
 borrarlo a pedido. Sin eso, un dato de contacto de un tercero no se puede defender
 bajo la Ley 25.326.
 
 No se compran bases sueltas por CSV: no se sabe de dónde salieron y no hay a quién
-reclamarle. Apollo es distinto —proveedor identificable, con términos de uso y bajas
-procesadas—, y por eso está integrado; el razonamiento completo está en
-[`docs/apollo.md`](docs/apollo.md). De LinkedIn se leen **avisos, nunca perfiles**:
-la distinción y sus motivos están en [`docs/linkedin.md`](docs/linkedin.md).
+reclamarle. De LinkedIn se leen **avisos, nunca perfiles**: la distinción y sus
+motivos están en [`docs/linkedin.md`](docs/linkedin.md).
 
 **Visibilidad de la ingesta**: cada corrida queda registrada, y el panel avisa si la
 última no trajo nada o si fallaron fuentes. Sin eso, una configuración rota se ve
@@ -244,7 +240,6 @@ talanton/
   ingest/         Conectores, corrida diaria y descubridor de fuentes
   enriquecer/     Contactos desde avisos y desde Hunter, verificación y regla de decisor
   correo/         Gmail: OAuth, cifrado de tokens, plantillas y envío
-  apollo/         Búsqueda de empresas y decisores, y su importación
   arranque.py     El primer arranque encadenado, en un solo paso
   asistente/      Claude: expediente del lead, «¿conviene?» y redacción del hilo
   importar.py     Pegar una lista y que quede como leads
@@ -253,8 +248,8 @@ talanton/
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            453 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
-docs/             Primera búsqueda, estrategia, Gmail, LinkedIn/Apify, Apollo, asistente y despliegue
+tests/            442 tests: dominio, web, accesibilidad, correo, asistente, cola, auth, ingesta y enriquecimiento
+docs/             Primera búsqueda, estrategia, Gmail, LinkedIn/Apify, contactos, asistente y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```
 

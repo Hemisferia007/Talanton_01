@@ -1,7 +1,9 @@
 {# Ventana de redacción. <dialog> nativo: trae foco atrapado, Esc para cerrar y
    fondo inerte sin escribir una línea de JS para eso. #}
-<dialog id="redactar" class="ventana" aria-labelledby="redactar-titulo">
+<dialog id="redactar" class="ventana" aria-labelledby="redactar-titulo"
+        data-abrir="{{ '1' if abrir_redaccion else '0' }}">
   <form method="post" action="/leads/{{ lead.id }}/enviar" class="ventana-forma">
+    {% if abrir_redaccion %}<input type="hidden" name="volver" value="panel">{% endif %}
     <header class="ventana-barra">
       <h2 id="redactar-titulo">Escribirle a {{ lead.empresa.nombre }}</h2>
       <button type="button" class="btn btn-fantasma" data-cerrar-ventana>Cerrar</button>

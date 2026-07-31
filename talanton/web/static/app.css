@@ -370,6 +370,26 @@ select[multiple] optgroup { font-weight: 600; padding-top: var(--s1); }
   color: var(--acento); margin-bottom: var(--s1);
 }
 
+/* --- Cola de trabajo --- */
+/* Cada fila es una tarea con una sola acción. El botón va a la derecha y
+   siempre en el mismo lugar: la mano aprende dónde está y deja de buscarlo. */
+.tareas { list-style: none; margin: 0; padding: 0; }
+.tarea {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s4); padding: var(--s3) 0; border-bottom: 1px solid var(--n-200);
+}
+.tarea:last-child { border-bottom: none; }
+.tarea-quien { min-width: 0; }
+.tarea-accion { flex: 0 0 auto; }
+.tarea-gancho {
+  font-size: var(--t-sm); color: var(--n-700); margin: var(--s2) 0 0;
+  max-width: 62ch; line-height: 1.45;
+}
+@media (max-width: 700px) {
+  .tarea { flex-direction: column; align-items: stretch; }
+  .tarea-accion .btn { width: 100%; text-align: center; }
+}
+
 /* --- Opinión del asistente --- */
 /* Título del panel con su acción a la derecha, sin que el botón empuje el h2. */
 .encabezado-panel {

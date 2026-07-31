@@ -1,18 +1,43 @@
 {% extends "base.html" %}
-{% from "_macros.html" import score, dias_chip %}
+{% from "_macros.html" import score %}
 {% block titulo %}Panel · Talanton{% endblock %}
+
+{% macro fila(lead, accion, etiqueta) %}
+  {# Una fila, una acción. Que haya que elegir entre tres botones ya es una
+     decisión de más para algo que se repite cuarenta veces por día. #}
+  <li class="tarea">
+    <div class="tarea-quien">
+      <a class="celda-titulo" href="/leads/{{ lead.id }}">{{ lead.empresa.nombre }}</a>
+      <div class="celda-sub">
+        {{ score(lead.score) }}
+        {{ lead.empresa.industria or 'Sin industria' }} ·
+        {{ lead.empresa.tamano_etiqueta }}
+      </div>
+      {% if lead.gancho %}
+        <p class="tarea-gancho">{{ lead.gancho }}</p>
+      {% endif %}
+      {% if lead.dias_sin_contacto is not none %}
+        <div class="celda-sub">
+          Le escribiste hace {{ lead.dias_sin_contacto }} días, sin respuesta
+        </div>
+      {% endif %}
+    </div>
+    <div class="tarea-accion">
+      <a class="btn" href="{{ accion }}">{{ etiqueta }}</a>
+    </div>
+  </li>
+{% endmacro %}
 
 {% block contenido %}
 <div class="encabezado">
   <div>
     <h1>Hola, {{ perfil.nombre }}</h1>
-    <p class="subtitulo">Empresas que hoy tienen una búsqueda que no están pudiendo cerrar.</p>
+    <p class="subtitulo">Lo que hay para hacer hoy, en orden.</p>
   </div>
 </div>
 
 {# Base vacía: no hay nada que reportar todavía, y lo único útil es el camino
-   para empezar. Un panel lleno de ceros y advertencias no le dice a nadie qué
-   hacer. #}
+   para empezar. Un panel lleno de ceros no le dice a nadie qué hacer. #}
 {% if metricas.leads == 0 %}
 <div class="gancho-caja" style="margin-bottom:var(--s5)">
   <strong>Todavía no hay leads</strong>
@@ -24,8 +49,14 @@
 </div>
 {% endif %}
 
-{# Una corrida que no trae nada se ve igual que un día tranquilo. Si algo anda
-   mal, tiene que decirlo acá y no esperar a que alguien revise los logs. #}
+{% if metricas.leads and not hay_gmail %}
+  <p class="alerta alerta-aviso" role="status">
+    Todavía no conectaste ninguna casilla, así que no podés mandar desde acá.
+    <a href="/mi-empresa">Conectar Gmail</a> — son dos minutos y es lo que falta
+    para que esta pantalla sirva de verdad.
+  </p>
+{% endif %}
+
 {% if metricas.leads and ingesta.estado != 'ok' %}
 <div class="alerta {{ 'alerta-error' if ingesta.estado in ('error', 'vacia', 'nunca') else 'alerta-aviso' }}"
      role="{{ 'alert' if ingesta.estado in ('error', 'vacia') else 'status' }}">
@@ -34,112 +65,114 @@
     Sin avisos entrando no se acumula histórico, que es de donde salen las
     señales de días abiertos y reposteos. Revisá <a href="/fuentes">Fuentes</a>.
   {% endif %}
-  {% if ingesta.corrida and ingesta.corrida.lineas_detalle %}
-    <details style="margin-top:var(--s2)">
-      <summary>Detalle de la última corrida</summary>
-      <ul class="mini" style="margin:var(--s2) 0 0; padding-left:var(--s4)">
-        {% for linea in ingesta.corrida.lineas_detalle %}<li>{{ linea }}</li>{% endfor %}
-      </ul>
-    </details>
-  {% endif %}
 </div>
 {% endif %}
 
-{# Una métrica manda: la que dispara la acción comercial. #}
-<div class="metricas">
-  <div class="metrica principal">
-    <div class="valor">{{ metricas.vacantes_urgentes }}</div>
-    <div class="etiqueta">Búsquedas abiertas hace más de 45 días</div>
-  </div>
-  <div class="metrica">
-    <div class="valor">{{ metricas.leads }}</div>
-    <div class="etiqueta">Leads en la base</div>
-  </div>
-  <div class="metrica">
-    <div class="valor">{{ metricas.leads_en_curso }}</div>
-    <div class="etiqueta">En conversación</div>
-  </div>
-  <div class="metrica">
-    <div class="valor">{{ metricas.leads_ganados }}</div>
-    <div class="etiqueta">Ganados</div>
-  </div>
-</div>
+{% if metricas.leads %}
+<div class="detalle">
+  <div class="pila">
 
-{# Los dos bloques van apilados a ancho completo: cada uno crece con su
-   contenido en vez de dejar un hueco al lado del más corto. #}
-<div class="pila">
-  <section class="panel" aria-labelledby="t-hoy">
-    <h2 id="t-hoy">Para atacar hoy</h2>
-    <p class="subtitulo">Leads nuevos con score ≥ {{ score_minimo }}, ordenados por prioridad.</p>
-    {% if prioritarios %}
-      <div class="tabla-envoltorio">
-      <table>
-        <caption class="sr-solo">Leads nuevos por encima del umbral</caption>
-        <thead>
-          <tr>
-            <th scope="col">Score</th>
-            <th scope="col">Empresa</th>
-            <th scope="col">Señal principal</th>
-            <th scope="col">Búsquedas abiertas</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for lead in prioritarios %}
-          {% set abiertas = lead.empresa.vacantes_abiertas %}
-          <tr class="enlazada">
-            <td>{{ score(lead.score) }}</td>
-            <td>
+    <section class="panel" aria-labelledby="t-escribir">
+      <div class="encabezado-panel">
+        <h2 id="t-escribir">Escribirles hoy</h2>
+        <span class="chip ok">{{ cola.total_escribir }}</span>
+      </div>
+      <p class="subtitulo">
+        Tienen mail cargado y nunca los contactaste. De mayor score a menor:
+        empezá por arriba y bajá hasta donde llegues.
+      </p>
+      {% if cola.escribir %}
+        <ul class="tareas">
+          {% for lead in cola.escribir %}
+            {{ fila(lead, '/leads/' ~ lead.id ~ '?redactar=1', 'Escribir') }}
+          {% endfor %}
+        </ul>
+        {% if cola.total_escribir > cola.escribir|length %}
+          <p class="ayuda">
+            Hay {{ cola.total_escribir }} en total. El tope diario es 40 por casilla:
+            no conviene mandar más.
+          </p>
+        {% endif %}
+      {% else %}
+        <p class="vacio">
+          Nada pendiente acá. Si querés más volumen, cargá empresas desde
+          <a href="/empezar">Cargar empresas</a>.
+        </p>
+      {% endif %}
+    </section>
+
+    <section class="panel" aria-labelledby="t-insistir">
+      <div class="encabezado-panel">
+        <h2 id="t-insistir">Volver a escribirles</h2>
+        <span class="chip tibio">{{ cola.total_insistir }}</span>
+      </div>
+      <p class="subtitulo">
+        Les escribiste hace {{ dias_para_insistir }} días o más y no contestaron.
+        Acá está la mitad de las respuestas: casi nadie contesta al primer mail.
+      </p>
+      {% if cola.insistir %}
+        <ul class="tareas">
+          {% for lead in cola.insistir %}
+            {{ fila(lead, '/leads/' ~ lead.id ~ '?redactar=1&plantilla=seguimiento', 'Insistir') }}
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="vacio">Ninguno vencido todavía.</p>
+      {% endif %}
+    </section>
+
+    {% if cola.sin_contacto %}
+    <section class="panel" aria-labelledby="t-sin-contacto">
+      <div class="encabezado-panel">
+        <h2 id="t-sin-contacto">Falta el contacto</h2>
+        <span class="chip cerrada">{{ cola.total_sin_contacto }}</span>
+      </div>
+      <p class="subtitulo">
+        Buenas empresas sin nadie a quien escribirle. Es trabajo de otro tipo:
+        conseguir el mail, no redactar.
+      </p>
+      <ul class="tareas">
+        {% for lead in cola.sin_contacto %}
+          {{ fila(lead, '/leads/' ~ lead.id, 'Buscar contacto') }}
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="pila">
+    <section class="panel" aria-labelledby="t-esperando">
+      <h2 id="t-esperando">Esperando respuesta</h2>
+      <p class="subtitulo">Contactados hace poco. Todavía no toca insistir.</p>
+      {% if cola.esperando %}
+        <ul class="timeline">
+          {% for lead in cola.esperando %}
+            <li>
               <a class="celda-titulo" href="/leads/{{ lead.id }}">{{ lead.empresa.nombre }}</a>
-              <div class="celda-sub">
-                {{ lead.empresa.industria or 'Sin industria' }} ·
-                {{ pais_nombre.get(lead.empresa.pais, 'País desconocido') }}
+              <div class="cuando">
+                hace {{ lead.dias_sin_contacto }} día{{ 's' if lead.dias_sin_contacto != 1 }}
               </div>
-            </td>
-            <td>{{ lead.lista_razones[0] if lead.lista_razones else '—' }}</td>
-            <td class="num">{{ abiertas|length }}</td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-      </div>
-    {% else %}
-      <p class="vacio">Nada por encima del umbral. Corré la ingesta o bajá el score mínimo en Mi empresa.</p>
-    {% endif %}
-  </section>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="vacio">Nadie esperando.</p>
+      {% endif %}
+    </section>
 
-  <section class="panel" aria-labelledby="t-estirando">
-    <h2 id="t-estirando">Se les está estirando</h2>
-    <p class="subtitulo">Las búsquedas más viejas todavía abiertas. Es el mejor momento para llamar.</p>
-    {% if urgentes %}
-      <div class="tabla-envoltorio">
-      <table>
-        <caption class="sr-solo">Búsquedas abiertas hace más de 45 días</caption>
-        <thead>
-          <tr>
-            <th scope="col">Abierta</th>
-            <th scope="col">Puesto</th>
-            <th scope="col">Empresa</th>
-            <th scope="col">Ubicación</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for v in urgentes %}
-          <tr>
-            <td>{{ dias_chip(v) }}</td>
-            <td class="celda-titulo">{{ v.titulo }}</td>
-            <td>
-              {% if v.empresa.lead %}<a href="/leads/{{ v.empresa.lead.id }}">{{ v.empresa.nombre }}</a>
-              {% else %}{{ v.empresa.nombre }}{% endif %}
-            </td>
-            <td>{{ v.ubicacion or 'Sin ubicación' }}</td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-      </div>
-    {% else %}
-      <p class="vacio">Todavía no hay búsquedas con más de 45 días. Se necesita histórico: dejá corriendo la ingesta.</p>
-    {% endif %}
-  </section>
+    <section class="panel" aria-labelledby="t-numeros">
+      <h2 id="t-numeros">Los números</h2>
+      <ul class="timeline">
+        <li><strong>{{ metricas.leads }}</strong> empresas en la base</li>
+        <li><strong>{{ metricas.vacantes_urgentes }}</strong> búsquedas estiradas hace más de 45 días</li>
+        <li><strong>{{ metricas.leads_en_curso }}</strong> conversaciones abiertas</li>
+        <li><strong>{{ metricas.leads_ganados }}</strong> ganados</li>
+      </ul>
+      <p class="ayuda">
+        El que importa es el tercero. Los otros son actividad; ése es resultado.
+      </p>
+    </section>
+  </div>
 </div>
+{% endif %}
 {% endblock %}

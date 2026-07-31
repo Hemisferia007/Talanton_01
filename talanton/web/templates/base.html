@@ -29,16 +29,14 @@
       <a href="{{ href }}" {% if activa %}aria-current="page"{% endif %}>{{ texto }}</a>
     {% endfor %}
 
-    {% set en_mas = ruta.startswith('/importar') or ruta.startswith('/buscar')
-                    or ruta.startswith('/senales') or ruta.startswith('/fuentes')
-                    or ruta == '/mi-empresa' %}
+    {% set en_mas = ruta.startswith('/importar') or ruta.startswith('/senales')
+                    or ruta.startswith('/fuentes') or ruta == '/mi-empresa' %}
     <details class="menu-mas">
       <summary {% if en_mas %}aria-current="page"{% endif %}>Más</summary>
       <div class="menu-mas-panel">
         <a href="/mi-empresa">Mi empresa y Gmail</a>
         <a href="/fuentes">Fuentes de avisos</a>
         <a href="/importar">Importar una lista</a>
-        <a href="/buscar">Buscar en Apollo</a>
         <a href="/senales">Señales por revisar</a>
       </div>
     </details>

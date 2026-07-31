@@ -18,14 +18,18 @@
     if (estado) estado.textContent = texto || "";
   }
 
-  if (abrir) {
-    abrir.addEventListener("click", () => {
-      dialogo.showModal();
-      // El asunto suele venir bien; lo que se retoca es el cuerpo.
-      campoCuerpo.focus();
-      campoCuerpo.setSelectionRange(0, 0);
-    });
+  function abrirVentana() {
+    dialogo.showModal();
+    // El asunto suele venir bien; lo que se retoca es el cuerpo.
+    campoCuerpo.focus();
+    campoCuerpo.setSelectionRange(0, 0);
   }
+
+  if (abrir) abrir.addEventListener("click", abrirVentana);
+
+  // La cola de trabajo linkea con ?redactar=1: se llega desde el panel y la
+  // ventana ya está abierta, sin un click de más por cada mail del día.
+  if (dialogo.dataset.abrir === "1") abrirVentana();
 
   dialogo.querySelectorAll("[data-cerrar-ventana]").forEach((b) =>
     b.addEventListener("click", () => dialogo.close())

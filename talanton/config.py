@@ -52,22 +52,12 @@ def apify_configurado() -> bool:
 
 # --- Hunter.io ---------------------------------------------------------------
 # Busca la persona de RRHH de una empresa a partir de su dominio. A diferencia
-# de Apollo, la API anda en el plan gratuito (25 búsquedas por mes).
+# de otras herramientas del rubro, su API anda en el plan gratuito (25 por mes).
 HUNTER_API_KEY = os.getenv("TALANTON_HUNTER_API_KEY", "")
 
 
 def hunter_configurado() -> bool:
     return bool(HUNTER_API_KEY)
-
-
-# --- Apollo ------------------------------------------------------------------
-# Base de empresas y decisores. Buscar es gratis; revelar un email consume un
-# crédito de la cuenta. Ver docs/apollo.md.
-APOLLO_API_KEY = os.getenv("TALANTON_APOLLO_API_KEY", "")
-
-
-def apollo_configurado() -> bool:
-    return bool(APOLLO_API_KEY)
 
 
 # --- Asistente (Claude) ------------------------------------------------------

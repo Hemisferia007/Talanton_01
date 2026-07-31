@@ -11,7 +11,7 @@ import pytest
 
 from talanton import services
 
-RUTAS = ["/", "/leads", "/tablero", "/avisos", "/empezar", "/importar", "/buscar", "/mi-empresa"]
+RUTAS = ["/", "/leads", "/tablero", "/avisos", "/empezar", "/importar", "/mi-empresa"]
 
 
 

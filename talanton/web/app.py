@@ -19,17 +19,12 @@ from sqlalchemy.orm import Session, selectinload
 from starlette.middleware.sessions import SessionMiddleware
 
 from .. import arranque, auth, avisos_manuales, fichas, services
-from ..apollo import busqueda as apollo_busqueda
-from ..apollo import cliente as apollo_cliente
-from ..apollo import industrias as apollo_industrias
-from ..apollo.cliente import ErrorApollo
 from ..asistente import conviene as ia_conviene
 from ..asistente import escribir as ia_escribir
 from ..asistente.cliente import ErrorAsistente, disponible as asistente_disponible
 from ..config import (
     COOKIES_SEGURAS,
     apify_configurado,
-    apollo_configurado,
     hunter_configurado,
     LIMITE_ENVIOS_DIARIOS,
     PAISES,
@@ -234,22 +229,21 @@ def _lead_o_404(session: Session, lead_id: int) -> Lead:
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(db_dependency)):
-    metricas = services.metricas(db)
-    prioritarios = [
-        lead
-        for lead in services.listar_leads(db, score_min=SCORE_MINIMO_ALERTA)
-        if lead.estado == EstadoLead.NUEVO
-    ][:8]
-    urgentes = services.listar_vacantes(db, solo_urgentes=True)[:8]
+    """La cola de trabajo del día: a quién escribirle y a quién insistirle.
+
+    Antes mostraba métricas. Un número no dice qué hacer; una fila con un botón
+    sí.
+    """
     return templates.TemplateResponse(
         request,
         "dashboard.html",
         _contexto(
             request,
             perfil=services.perfil(db),
-            metricas=metricas,
-            prioritarios=prioritarios,
-            urgentes=urgentes,
+            metricas=services.metricas(db),
+            cola=services.cola_de_trabajo(db),
+            dias_para_insistir=services.DIAS_PARA_INSISTIR,
+            hay_gmail=bool(correo.listar_cuentas(db)),
             ingesta=services.estado_ingesta(db),
         ),
     )
@@ -334,7 +328,15 @@ def lead_detalle(request: Request, lead_id: int, db: Session = Depends(db_depend
             objetivo=objetivo_para(lead.empresa),
             # El borrador se arma acá para que el diálogo abra ya escrito, sin
             # esperar una llamada al servidor.
-            redaccion=correo.borrador(db, lead, cuenta=cuentas[0] if cuentas else None),
+            # `plantilla` viene de la cola de trabajo: «Insistir» abre
+            # directamente con el seguimiento en vez de con el primer contacto.
+            redaccion=correo.borrador(
+                db,
+                lead,
+                clave=request.query_params.get("plantilla"),
+                cuenta=cuentas[0] if cuentas else None,
+            ),
+            abrir_redaccion=request.query_params.get("redactar") == "1",
             gmail_listo=gmail_configurado(),
             asistente_listo=asistente_disponible(),
             hunter_listo=hunter_configurado(),
@@ -716,154 +718,6 @@ def empezar(
     )
 
 
-# --- Buscar en Apollo --------------------------------------------------------
-
-
-def _contexto_apollo(request: Request, db: Session, **extra):
-    base = dict(
-        apollo_listo=apollo_configurado(),
-        cargos="\n".join(apollo_busqueda.CARGOS_POR_DEFECTO),
-        pais="AR",
-        dotacion_min="",
-        dotacion_max="",
-        industrias=[],
-        palabras="",
-        grupos_industria=apollo_industrias.agrupadas(),
-        resultado=None,
-        importado=None,
-        error=None,
-        diagnostico=None,
-    )
-    base.update(extra)
-    return _contexto(request, **base)
-
-
-@app.get("/buscar", response_class=HTMLResponse)
-def buscar_form(request: Request, db: Session = Depends(db_dependency)):
-    p = services.perfil(db)
-    return templates.TemplateResponse(
-        request,
-        "buscar.html",
-        _contexto_apollo(
-            request,
-            db,
-            # El ICP está escrito en castellano; se traduce para que quede
-            # marcado lo que corresponda en la lista.
-            industrias=apollo_industrias.traducir_todas(p.industrias),
-            dotacion_min=p.dotacion_min or "",
-            dotacion_max=p.dotacion_max or "",
-        ),
-    )
-
-
-@app.post("/buscar", response_class=HTMLResponse)
-async def buscar_en_apollo(request: Request, db: Session = Depends(db_dependency)):
-    """Previsualiza. No consume créditos y los emails vienen tapados."""
-    formulario = await request.form()
-    cargos = str(formulario.get("cargos") or "")
-    pais = str(formulario.get("pais") or "AR")
-    palabras = str(formulario.get("palabras") or "")
-    dotacion_min = str(formulario.get("dotacion_min") or "")
-    dotacion_max = str(formulario.get("dotacion_max") or "")
-    # El `<select multiple>` manda una entrada por opción elegida.
-    industrias = [str(x) for x in formulario.getlist("industrias") if str(x).strip()]
-
-    filtros = apollo_busqueda.Filtros(
-        cargos=[c.strip() for c in cargos.splitlines() if c.strip()],
-        pais=pais,
-        industrias=industrias + [p.strip() for p in palabras.split(",") if p.strip()],
-        dotacion_min=_entero_o_none(dotacion_min),
-        dotacion_max=_entero_o_none(dotacion_max),
-        pagina=max(1, _entero_o_none(formulario.get("pagina")) or 1),
-    )
-    devolver = dict(
-        cargos=cargos,
-        pais=pais,
-        industrias=industrias,
-        palabras=palabras,
-        dotacion_min=dotacion_min,
-        dotacion_max=dotacion_max,
-    )
-    try:
-        resultado = apollo_busqueda.buscar(db, filtros)
-    except ErrorApollo as exc:
-        return templates.TemplateResponse(
-            request, "buscar.html", _contexto_apollo(request, db, error=str(exc), **devolver)
-        )
-
-    return templates.TemplateResponse(
-        request,
-        "buscar.html",
-        _contexto_apollo(request, db, resultado=resultado, **devolver),
-    )
-
-
-@app.post("/buscar/probar", response_class=HTMLResponse)
-def probar_apollo(request: Request, db: Session = Depends(db_dependency)):
-    """Muestra qué contesta Apollo, sin traducir. Para cuando el mensaje de
-    error no alcanza para saber si el problema es la clave o el plan."""
-    try:
-        info = apollo_cliente.Cliente().diagnostico()
-    except ErrorApollo as exc:
-        return templates.TemplateResponse(
-            request, "buscar.html", _contexto_apollo(request, db, error=str(exc))
-        )
-    return templates.TemplateResponse(
-        request, "buscar.html", _contexto_apollo(request, db, diagnostico=info)
-    )
-
-
-@app.post("/buscar/importar", response_class=HTMLResponse)
-async def importar_de_apollo(
-    request: Request, db: Session = Depends(db_dependency)
-):
-    """Importa los seleccionados. **Acá sí se gastan créditos**, uno por cada
-    email que haya que destapar.
-
-    Las personas viajan en el formulario en vez de volver a consultarse: repetir
-    la búsqueda podría traer otro orden y terminar importando a otra gente.
-    """
-    formulario = await request.form()
-    pais = str(formulario.get("pais") or "AR")
-    revelar = formulario.get("revelar") == "1"
-    seleccionadas = formulario.getlist("persona")
-
-    personas = []
-    for crudo in seleccionadas:
-        try:
-            personas.append(apollo_cliente.Persona(**json.loads(crudo)))
-        except (ValueError, TypeError) as exc:
-            log_web.warning("Fila de Apollo ilegible: %s", exc)
-
-    if not personas:
-        return templates.TemplateResponse(
-            request,
-            "buscar.html",
-            _contexto_apollo(request, db, error="No seleccionaste ningún contacto."),
-        )
-
-    try:
-        resultado = apollo_busqueda.importar_personas(
-            db, personas, pais=pais, revelar=revelar,
-            vigilar=formulario.get("vigilar") == "1",
-        )
-    except ErrorApollo as exc:
-        return templates.TemplateResponse(
-            request, "buscar.html", _contexto_apollo(request, db, error=str(exc))
-        )
-
-    return templates.TemplateResponse(
-        request, "buscar.html", _contexto_apollo(request, db, importado=resultado)
-    )
-
-
-def _entero_o_none(valor: str) -> int | None:
-    try:
-        return int(str(valor).strip())
-    except (TypeError, ValueError):
-        return None
-
-
 # --- Fuentes -----------------------------------------------------------------
 
 
@@ -1221,6 +1075,7 @@ def enviar_mail(
     asunto: str = Form(...),
     cuerpo: str = Form(...),
     plantilla: str = Form(""),
+    volver: str = Form(""),
     db: Session = Depends(db_dependency),
 ):
     lead = _lead_o_404(db, lead_id)
@@ -1247,6 +1102,10 @@ def enviar_mail(
 
         return RedirectResponse(f"/leads/{lead_id}?error={quote(str(exc))}", status_code=303)
 
+    # Si vino de la cola de trabajo, vuelve ahí: el próximo mail del día está
+    # en esa pantalla, no en la ficha del que se acaba de mandar.
+    if volver == "panel":
+        return RedirectResponse("/?enviado=1", status_code=303)
     return RedirectResponse(f"/leads/{lead_id}?enviado=1", status_code=303)
 
 

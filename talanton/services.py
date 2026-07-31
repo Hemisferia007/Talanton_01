@@ -415,3 +415,64 @@ def estado_ingesta(session: Session) -> dict:
         estado, mensaje = "ok", "La ingesta está trayendo datos."
 
     return {"estado": estado, "mensaje": mensaje, "corrida": corrida, "horas": horas}
+
+
+# --- Cola de trabajo ---------------------------------------------------------
+
+# Días sin respuesta a partir de los cuales conviene insistir. Menos es
+# molestar; más y el mail anterior ya se enterró en la bandeja.
+DIAS_PARA_INSISTIR = 5
+
+
+def cola_de_trabajo(session: Session, *, tope: int = 15) -> dict:
+    """Lo que hay que hacer hoy, en tres montones y en orden de prioridad.
+
+    Un listado de leads ordenado por score no dice qué hacer: hay que mirar
+    estado, si tiene mail y hace cuánto se lo contactó, lead por lead. Esto lo
+    resuelve una vez y deja tres colas donde cada fila tiene una sola acción
+    posible.
+    """
+    todos = listar_leads(session)
+
+    def tiene_mail(lead: Lead) -> bool:
+        return any(c.email for c in lead.empresa.contactos)
+
+    escribir = [
+        l for l in todos
+        if l.estado == EstadoLead.NUEVO and tiene_mail(l) and not l.empresa.parece_proveedor
+    ]
+    insistir = [
+        l for l in todos
+        if l.estado == EstadoLead.CONTACTADO
+        and (l.dias_sin_contacto or 0) >= DIAS_PARA_INSISTIR
+    ]
+    esperando = [
+        l for l in todos
+        if l.estado == EstadoLead.CONTACTADO
+        and (l.dias_sin_contacto or 0) < DIAS_PARA_INSISTIR
+    ]
+    # Score alto pero sin nadie a quien escribirle: es trabajo, pero de otro
+    # tipo —conseguir el contacto— y por eso va en su propio montón.
+    sin_contacto = [
+        l for l in todos
+        if l.estado == EstadoLead.NUEVO and not tiene_mail(l)
+        and not l.empresa.parece_proveedor
+    ]
+
+    return {
+        "escribir": escribir[:tope],
+        "insistir": insistir[:tope],
+        "esperando": esperando[:tope],
+        "sin_contacto": sin_contacto[:tope],
+        "total_escribir": len(escribir),
+        "total_insistir": len(insistir),
+        "total_sin_contacto": len(sin_contacto),
+    }
+
+
+def destinatario(lead: Lead) -> str | None:
+    """El mail al que se le escribe: el decisor, o el primero que tenga."""
+    decisores = [c for c in lead.empresa.contactos if c.es_decisor and c.email]
+    if decisores:
+        return decisores[0].email
+    return next((c.email for c in lead.empresa.contactos if c.email), None)

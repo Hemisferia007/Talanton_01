@@ -1,7 +1,7 @@
 """Importador de listas de empresas y contactos.
 
 La vía más corta para empezar a trabajar: cualquier lista que ya tengas —un
-Excel de clientes viejos, una exportación de Apollo, contactos de una feria—
+Excel de clientes viejos, una exportación de un CRM, contactos de una feria—
 entra acá y queda como leads listos para el tablero.
 
 Es deliberadamente tolerante con el formato: la gente pega lo que tiene, no lo
@@ -27,7 +27,7 @@ log = logging.getLogger("talanton.importar")
 
 # Nombres de columna que aceptamos para cada campo. Se comparan sin acentos,
 # sin mayúsculas y sin puntuación: quien exporta de Excel no va a normalizar
-# nada, y Apollo titula una columna «# Employees».
+# nada, y más de una herramienta titula una columna «# Employees».
 #
 # El orden dentro de cada tupla importa: gana el primero que aparece en el
 # archivo, así que los nombres más específicos van primero. «Company City» tiene
@@ -41,7 +41,7 @@ _COLUMNAS = {
                 "url", "pagina"),
     "contacto": ("contacto", "nombre completo", "nombre", "name", "full name",
                  "first name", "persona", "referente"),
-    # Apollo y la mayoría de los CRMs parten el nombre en dos columnas. Sin
+    # La mayoría de los CRMs parten el nombre en dos columnas. Sin
     # esto, un contacto exportado queda como «Marina» a secas y el saludo del
     # mail sale cortado.
     "apellido": ("apellido", "apellidos", "last name", "surname", "family name"),
@@ -206,7 +206,7 @@ def analizar(texto: str) -> Resultado:
     resultado = Resultado()
     # Sólo saltos de línea: un `.strip()` común se come el tabulador inicial de
     # la primera fila, y eso pasa siempre que se copia una tabla con columna de
-    # casilla de selección —la de Apollo, la de cualquier CRM—. El encabezado
+    # casilla de selección, que trae cualquier tabla de CRM. El encabezado
     # queda corrido una columna respecto de los datos y la importación entra
     # entera con las columnas cambiadas, sin ningún error visible.
     texto = (texto or "").strip("\r\n")
@@ -288,8 +288,8 @@ def importar(
     """Guarda las filas como empresas, contactos y leads.
 
     Con `vigilar`, además las deja como objetivos de la corrida diaria. Es el
-    default porque es la mitad que le falta a una lista comprada: Apollo dice
-    **quién** decide, los avisos dicen **cuándo** conviene escribirle. Sin esto
+    default porque es la mitad que le falta a una lista comprada: la lista dice
+    **a quién** escribirle, los avisos dicen **cuándo**. Sin esto
     habría que pegar los mismos nombres una segunda vez en la pantalla Fuentes.
     """
     resultado = Resultado(filas=filas)
