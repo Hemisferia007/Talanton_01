@@ -340,9 +340,6 @@ def listar_vacantes(
 
 def metricas(session: Session) -> dict:
     total_leads = session.scalar(select(func.count()).select_from(Lead)) or 0
-    abiertas = session.scalar(
-        select(func.count()).select_from(Vacante).where(Vacante.cerrada.is_(False))
-    ) or 0
     empresas = session.scalar(select(func.count()).select_from(Empresa)) or 0
     calientes = session.scalar(
         select(func.count()).select_from(Lead).where(Lead.score >= 70)
@@ -355,13 +352,18 @@ def metricas(session: Session) -> dict:
         .select_from(Lead)
         .where(Lead.estado.notin_([EstadoLead.NUEVO, EstadoLead.GANADO, EstadoLead.PERDIDO]))
     ) or 0
-    urgentes = len(
-        [
-            v
-            for v in session.scalars(select(Vacante).where(Vacante.cerrada.is_(False))).all()
-            if v.es_urgente
-        ]
-    )
+    # Perennes afuera. Un aviso tipo «Postulación espontánea» nunca se cierra,
+    # así que acumula días para siempre y termina contando como urgente: por eso
+    # el panel llegó a decir 628 búsquedas estiradas con 45 empresas. Se cuenta
+    # sobre `Empresa.vacantes_abiertas`, que ya los excluye.
+    abiertas = 0
+    urgentes = 0
+    for empresa_ in session.scalars(
+        select(Empresa).options(selectinload(Empresa.vacantes))
+    ).all():
+        vacantes = empresa_.vacantes_abiertas
+        abiertas += len(vacantes)
+        urgentes += len([v for v in vacantes if v.es_urgente])
     return {
         "leads": total_leads,
         "empresas": empresas,

@@ -2,6 +2,17 @@
 {% from "_macros.html" import score %}
 {% block titulo %}Panel · Talanton{% endblock %}
 
+{% macro buscar(lead) %}
+  {# Un POST y no un link: acá se hace el trabajo, no se navega a hacerlo. #}
+  <form method="post" action="/leads/{{ lead.id }}/contactos/sitio">
+    <input type="hidden" name="volver" value="panel">
+    <button class="btn" type="submit"
+            {{ 'disabled' if not lead.empresa.dominio }}>
+      {{ 'Buscar contacto' if lead.empresa.dominio else 'Falta el dominio' }}
+    </button>
+  </form>
+{% endmacro %}
+
 {% macro fila(lead, accion, etiqueta) %}
   {# Una fila, una acción. Que haya que elegir entre tres botones ya es una
      decisión de más para algo que se repite cuarenta veces por día. #}
@@ -23,7 +34,8 @@
       {% endif %}
     </div>
     <div class="tarea-accion">
-      <a class="btn" href="{{ accion }}">{{ etiqueta }}</a>
+      {% if accion == 'buscar' %}{{ buscar(lead) }}
+      {% else %}<a class="btn" href="{{ accion }}">{{ etiqueta }}</a>{% endif %}
     </div>
   </li>
 {% endmacro %}
@@ -41,13 +53,18 @@
 {% if metricas.leads == 0 %}
 <div class="gancho-caja" style="margin-bottom:var(--s5)">
   <strong>Todavía no hay leads</strong>
-  Pegá una lista de empresas y Talanton las carga, busca dónde publican sus avisos
-  y puntúa todo en un solo paso. Viene con una lista de arranque cargada.
+  Elegí una zona y un rubro y Talanton trae las empresas que están publicando
+  avisos ahora mismo. No hace falta tener una lista: ésas son las que están
+  contratando hoy.
   <div style="margin-top:var(--s3)">
-    <a class="btn" href="/empezar">Empezar</a>
+    <a class="btn" href="/buscar">Buscar empresas</a>
+    <a class="btn btn-fantasma" href="/empezar">O importar una lista</a>
   </div>
 </div>
 {% endif %}
+
+{% if ok %}<p class="alerta alerta-ok" role="status">{{ ok }}</p>{% endif %}
+{% if error %}<p class="alerta alerta-aviso" role="status">{{ error }}</p>{% endif %}
 
 {% if metricas.leads and not hay_gmail %}
   <p class="alerta alerta-aviso" role="status">
@@ -63,7 +80,8 @@
   <strong>Ingesta:</strong> {{ ingesta.mensaje }}
   {% if ingesta.estado in ('vacia', 'nunca') %}
     Sin avisos entrando no se acumula histórico, que es de donde salen las
-    señales de días abiertos y reposteos. Revisá <a href="/fuentes">Fuentes</a>.
+    señales de días abiertos y reposteos. Traé empresas desde
+    <a href="/buscar">Buscar empresas</a>: quedan vigiladas desde ese momento.
   {% endif %}
 </div>
 {% endif %}
@@ -95,8 +113,8 @@
         {% endif %}
       {% else %}
         <p class="vacio">
-          Nada pendiente acá. Si querés más volumen, cargá empresas desde
-          <a href="/empezar">Cargar empresas</a>.
+          Nada pendiente acá. Si querés más volumen, traé más empresas desde
+          <a href="/buscar">Buscar empresas</a>.
         </p>
       {% endif %}
     </section>
@@ -133,7 +151,7 @@
       </p>
       <ul class="tareas">
         {% for lead in cola.sin_contacto %}
-          {{ fila(lead, '/leads/' ~ lead.id, 'Buscar contacto') }}
+          {{ fila(lead, 'buscar', 'Buscar contacto') }}
         {% endfor %}
       </ul>
     </section>

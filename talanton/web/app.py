@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from starlette.middleware.sessions import SessionMiddleware
 
-from .. import arranque, auth, avisos_manuales, fichas, services
+from .. import arranque, auth, avisos_manuales, busqueda, fichas, services
 from ..asistente import conviene as ia_conviene
 from ..asistente import escribir as ia_escribir
 from ..asistente.cliente import ErrorAsistente, disponible as asistente_disponible
@@ -242,6 +242,8 @@ def dashboard(request: Request, db: Session = Depends(db_dependency)):
             perfil=services.perfil(db),
             metricas=services.metricas(db),
             cola=services.cola_de_trabajo(db),
+            ok=request.query_params.get("ok"),
+            error=request.query_params.get("error"),
             dias_para_insistir=services.DIAS_PARA_INSISTIR,
             hay_gmail=bool(correo.listar_cuentas(db)),
             ingesta=services.estado_ingesta(db),
@@ -432,8 +434,16 @@ def buscar_contactos(lead_id: int, db: Session = Depends(db_dependency)):
 
 
 @app.post("/leads/{lead_id}/contactos/sitio")
-def buscar_contactos_en_el_sitio(lead_id: int, db: Session = Depends(db_dependency)):
-    """Busca mails en el sitio de la empresa. Gratis y sin límite de uso."""
+def buscar_contactos_en_el_sitio(
+    lead_id: int, volver: str = Form(""), db: Session = Depends(db_dependency)
+):
+    """Busca mails en el sitio de la empresa, y en Hunter si el sitio no tuvo.
+
+    Gratis primero, con créditos después: es el orden que hace que las 25
+    búsquedas mensuales de Hunter duren.
+    """
+    from urllib.parse import quote
+
     from ..enriquecer import servicio as mod_enriquecer
 
     lead = _lead_o_404(db, lead_id)
@@ -441,13 +451,31 @@ def buscar_contactos_en_el_sitio(lead_id: int, db: Session = Depends(db_dependen
         return _volver_al_lead(lead_id, error="Cargá el dominio de la empresa primero.")
 
     nuevos, _ = mod_enriquecer.enriquecer_empresa(db, lead.empresa)
+    de_donde = "en su web"
+
+    if not nuevos and hunter_configurado():
+        try:
+            nuevos, _ = contactos_hunter.buscar_una(db, lead.empresa)
+            de_donde = "en Hunter"
+        except ErrorHunter as exc:
+            log_web.info("Hunter no resolvió %s: %s", lead.empresa.nombre, exc)
     db.commit()
-    if not nuevos:
-        return _volver_al_lead(
-            lead_id,
-            error=f"No se encontraron mails publicados en {lead.empresa.dominio}.",
+
+    if nuevos:
+        aviso = f"{lead.empresa.nombre}: {nuevos} contacto(s) encontrados {de_donde}."
+    else:
+        aviso = (
+            f"{lead.empresa.nombre}: no hay mails publicados en {lead.empresa.dominio}. "
+            "Probá en LinkedIn o cargalo a mano desde la ficha."
         )
-    return _volver_al_lead(lead_id, ok=f"{nuevos} contacto(s) encontrados en el sitio.")
+
+    # Desde el panel se buscan varias seguidas: volver a la cola en vez de a la
+    # ficha ahorra un click por empresa.
+    if volver == "panel":
+        clave = "ok" if nuevos else "error"
+        return RedirectResponse(f"/?{clave}={quote(aviso)}", status_code=303)
+    return _volver_al_lead(lead_id, ok=aviso if nuevos else None,
+                           error=None if nuevos else aviso)
 
 
 @app.post("/leads/{lead_id}/contactos/nuevo")
@@ -734,6 +762,98 @@ def empezar(
             error=resultado.error,
             hay_leads=True,
         ),
+    )
+
+
+# --- Buscar empresas ---------------------------------------------------------
+
+
+def _contexto_buscar(request: Request, db: Session, **extra):
+    from ..ingest.portales.base import RUBROS, ZONAS
+
+    p = services.perfil(db)
+    base = {
+        "zonas": ZONAS,
+        "rubros": RUBROS,
+        "segmento": None,
+        "exploracion": None,
+        "traida": None,
+        "error": None,
+        # El tramo de dotación sale del ICP: es lo que el usuario ya declaró que
+        # le sirve, y así no tiene que volver a contestarlo en cada búsqueda.
+        "dotacion_min": p.dotacion_min,
+        "dotacion_max": p.dotacion_max,
+    }
+    base.update(extra)
+    return _contexto(request, **base)
+
+
+@app.get("/buscar", response_class=HTMLResponse)
+def buscar_form(request: Request, db: Session = Depends(db_dependency)):
+    return templates.TemplateResponse(request, "buscar.html", _contexto_buscar(request, db))
+
+
+@app.post("/buscar", response_class=HTMLResponse)
+def buscar_empresas(
+    request: Request,
+    zona: str = Form("todo-el-pais"),
+    rubro: str = Form(""),
+    dias_minimos: int = Form(0),
+    db: Session = Depends(db_dependency),
+):
+    """Mira los portales y muestra qué encontró. Todavía no guarda nada."""
+    from ..ingest.portales import Segmento
+
+    segmento = Segmento(
+        zona=zona,
+        rubro=rubro or None,
+        # Un número negativo no significa nada y rompería el filtro.
+        dias_minimos=max(0, dias_minimos),
+    )
+    try:
+        exploracion = busqueda.explorar(db, segmento)
+    except Exception as exc:  # noqa: BLE001 - el error se muestra, no se traga
+        log_web.exception("Falló la búsqueda por segmento")
+        return templates.TemplateResponse(
+            request,
+            "buscar.html",
+            _contexto_buscar(
+                request, db, segmento=segmento, error=f"No se pudo buscar: {exc}"
+            ),
+        )
+
+    return templates.TemplateResponse(
+        request,
+        "buscar.html",
+        _contexto_buscar(request, db, segmento=segmento, exploracion=exploracion),
+    )
+
+
+@app.post("/buscar/traer", response_class=HTMLResponse)
+async def traer_hallazgos(request: Request, db: Session = Depends(db_dependency)):
+    """Guarda los avisos tildados como empresas, vacantes y leads puntuados."""
+    formulario = await request.form()
+    hallazgos = []
+    for crudo in formulario.getlist("elegido"):
+        try:
+            datos = json.loads(crudo)
+        except (TypeError, ValueError):
+            continue
+        hallazgo = busqueda.hallazgo_desde_payload(datos)
+        if hallazgo is not None:
+            hallazgos.append(hallazgo)
+
+    if not hallazgos:
+        return templates.TemplateResponse(
+            request,
+            "buscar.html",
+            _contexto_buscar(request, db, error="No tildaste ningún aviso."),
+        )
+
+    traida = busqueda.traer(db, hallazgos)
+    db.commit()
+    return templates.TemplateResponse(
+        request, "buscar.html", _contexto_buscar(request, db, traida=traida)
     )
 
 

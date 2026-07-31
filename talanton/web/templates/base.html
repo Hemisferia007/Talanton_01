@@ -24,19 +24,23 @@
       ('/leads', 'Leads', ruta.startswith('/leads')),
       ('/tablero', 'Tablero', ruta == '/tablero'),
       ('/avisos', 'Avisos', ruta == '/avisos'),
-      ('/empezar', 'Cargar empresas', ruta.startswith('/empezar'))
+      ('/buscar', 'Buscar empresas', ruta.startswith('/buscar'))
     ] %}
       <a href="{{ href }}" {% if activa %}aria-current="page"{% endif %}>{{ texto }}</a>
     {% endfor %}
 
+    {# `Fuentes` sale del menú: es plomería —qué board tiene cada empresa— que no
+       hay que mirar para vender. La ruta queda viva para los enlaces existentes.
+       `Empezar` baja acá: sirve si ya tenés un Excel propio, pero el camino
+       principal ahora es buscar por segmento, no cargar una lista a mano. #}
     {% set en_mas = ruta.startswith('/importar') or ruta.startswith('/senales')
-                    or ruta.startswith('/fuentes') or ruta == '/mi-empresa' %}
+                    or ruta.startswith('/empezar') or ruta == '/mi-empresa' %}
     <details class="menu-mas">
       <summary {% if en_mas %}aria-current="page"{% endif %}>Más</summary>
       <div class="menu-mas-panel">
         <a href="/mi-empresa">Mi empresa y Gmail</a>
-        <a href="/fuentes">Fuentes de avisos</a>
-        <a href="/importar">Importar una lista</a>
+        <a href="/empezar">Importar una lista</a>
+        <a href="/importar">Importar contactos</a>
         <a href="/senales">Señales por revisar</a>
       </div>
     </details>

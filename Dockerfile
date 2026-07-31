@@ -2,7 +2,10 @@ FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    # Fuera del HOME de root: el navegador se instala como root pero lo usa el
+    # usuario `talanton`, y en `~/.cache` no podría leerlo.
+    PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
 
 WORKDIR /app
 
@@ -10,6 +13,14 @@ WORKDIR /app
 # se reusa entre builds.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# El navegador de Scrapling. Bumeran y ZonaJobs arman el listado con JavaScript:
+# sin navegador el HTML llega vacío y esos dos portales no devuelven nada.
+# Suma peso a la imagen y minutos al build; Computrabajo anda sin esto, así que
+# si el build se vuelve un problema, esta línea se puede sacar y la búsqueda
+# sigue funcionando con un portal menos.
+RUN (scrapling install && chmod -R a+rX /opt/pw-browsers) \
+    || echo "Sin navegador: Bumeran y ZonaJobs quedan fuera"
 
 COPY . .
 

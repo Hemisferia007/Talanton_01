@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% from "_macros.html" import score %}
+{% block titulo %}Buscar empresas · Talanton{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Buscar empresas</h1>
+    <p class="subtitulo">
+      Elegí zona y rubro y Talanton mira los portales de empleo argentinos. Las
+      empresas que están publicando ahora son las que están contratando ahora:
+      no hay que cargarlas de antemano ni esperar a que aparezcan.
+    </p>
+  </div>
+</div>
+
+{% if error %}<p class="alerta alerta-error" role="alert">{{ error }}</p>{% endif %}
+
+{% if traida %}
+  <p class="alerta alerta-ok" role="status">
+    <strong>Guardado.</strong>
+    {{ traida.empresas_nuevas }} empresa{{ 's' if traida.empresas_nuevas != 1 }} nueva{{ 's' if traida.empresas_nuevas != 1 }} ·
+    {{ traida.empresas_actualizadas }} que ya tenías ·
+    {{ traida.vacantes_nuevas }} búsqueda{{ 's' if traida.vacantes_nuevas != 1 }} nueva{{ 's' if traida.vacantes_nuevas != 1 }}{% if traida.vacantes_repetidas %} ·
+    {{ traida.vacantes_repetidas }} que ya estaban registradas{% endif %}.
+  </p>
+
+  {% if traida.leads %}
+  <section class="panel" aria-labelledby="t-quedaron" style="margin-bottom:var(--s4)">
+    <h2 id="t-quedaron">Cómo quedaron</h2>
+    <ul class="tareas">
+      {% for lead in traida.leads %}
+        <li class="tarea">
+          <div class="tarea-quien">
+            <a class="celda-titulo" href="/leads/{{ lead.id }}">{{ lead.empresa.nombre }}</a>
+            <div class="celda-sub">{{ score(lead.score) }} {{ lead.empresa.tamano_etiqueta }}</div>
+            {% if lead.gancho %}<p class="tarea-gancho">{{ lead.gancho }}</p>{% endif %}
+          </div>
+          <div class="tarea-accion">
+            <a class="btn" href="/leads/{{ lead.id }}">Abrir</a>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="ayuda" style="margin-top:var(--s4)">
+      A las que no tengan mail, el <a href="/">Panel</a> las muestra en «Falta el
+      contacto» con el botón para buscarlo.
+    </p>
+  </section>
+  {% endif %}
+{% endif %}
+
+<form class="panel" method="post" action="/buscar" id="forma-buscar"
+      style="margin-bottom:var(--s4)">
+  <div class="filtros">
+    <div class="filtro">
+      <label for="zona">Zona</label>
+      <select id="zona" name="zona">
+        {% for valor, etiqueta in zonas %}
+          <option value="{{ valor }}"
+            {{ 'selected' if segmento and segmento.zona == valor }}>{{ etiqueta }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filtro">
+      <label for="rubro">Rubro</label>
+      <select id="rubro" name="rubro">
+        <option value="">Todos</option>
+        {% for valor, etiqueta in rubros %}
+          <option value="{{ valor }}"
+            {{ 'selected' if segmento and segmento.rubro == valor }}>{{ etiqueta }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filtro">
+      <label for="dias_minimos">Publicados hace más de</label>
+      <select id="dias_minimos" name="dias_minimos"
+              aria-describedby="ayuda-dias">
+        {% for valor, etiqueta in [
+            (0, 'Cualquier antigüedad'),
+            (15, '15 días'),
+            (30, '30 días'),
+            (45, '45 días'),
+            (60, '60 días')] %}
+          <option value="{{ valor }}"
+            {{ 'selected' if segmento and segmento.dias_minimos == valor }}>{{ etiqueta }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button class="btn" type="submit" id="boton-buscar">Buscar</button>
+  </div>
+  <p class="ayuda" id="ayuda-dias">
+    La antigüedad es la señal que importa: un aviso de 45 días es una búsqueda
+    que la empresa no está pudiendo cerrar sola. Los portales no informan la
+    fecha exacta, así que los avisos sin fecha quedan afuera cuando pedís un
+    mínimo.
+  </p>
+  <p class="ayuda" id="estado-buscar" role="status" aria-live="polite"></p>
+</form>
+
+{% if exploracion is not none %}
+  {% if exploracion.hallazgos %}
+  <form method="post" action="/buscar/traer">
+    <div class="panel">
+      <div class="encabezado-panel">
+        <h2>
+          {{ exploracion.hallazgos|length }} aviso{{ 's' if exploracion.hallazgos|length != 1 }}
+          en {{ exploracion.empresas }} empresa{{ 's' if exploracion.empresas != 1 }}
+        </h2>
+        <span class="chip ok">{{ exploracion.nuevas }} sin cargar todavía</span>
+      </div>
+      <p class="subtitulo">
+        De más viejo a más nuevo. Destildá lo que no te sirva y traé el resto.
+      </p>
+
+      <div class="tabla-envoltorio">
+      <table>
+        <caption class="sr-solo">Avisos encontrados en los portales</caption>
+        <thead>
+          <tr>
+            <th scope="col"><span class="sr-solo">Traer</span></th>
+            <th scope="col">Abierta</th>
+            <th scope="col">Empresa</th>
+            <th scope="col">Puesto</th>
+            <th scope="col">Ubicación</th>
+            <th scope="col">Portal</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for h in exploracion.hallazgos %}
+          {# El JSON va en atributo con comillas simples: `tojson` escapa `<`,
+             `>`, `&` y `'`, pero no `"`, y el JSON está lleno de comillas. #}
+          <tr>
+            <td>
+              <input type="checkbox" id="h{{ loop.index }}" name="elegido"
+                     value='{{ h.payload | tojson }}' checked>
+              <label class="sr-solo" for="h{{ loop.index }}">
+                Traer {{ h.titulo }} de {{ h.empresa }}
+              </label>
+            </td>
+            <td>{{ h.antiguedad_texto }}</td>
+            <td>
+              <div class="celda-titulo">{{ h.empresa }}</div>
+              {% if h.ya_estaba %}<div class="celda-sub">Ya la tenías</div>{% endif %}
+            </td>
+            <td>
+              {% if h.url %}
+                <a href="{{ h.url }}" target="_blank" rel="noopener">{{ h.titulo }}</a>
+              {% else %}{{ h.titulo }}{% endif %}
+            </td>
+            <td>{{ h.ubicacion or '—' }}</td>
+            <td>{{ h.portal }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+
+      <div style="margin-top:var(--s4)">
+        <button class="btn" type="submit">Traer como leads</button>
+      </div>
+    </div>
+  </form>
+  {% else %}
+    <div class="panel">
+      <p class="vacio">
+        Los portales no devolvieron nada para ese segmento.
+        {% if segmento and segmento.dias_minimos %}
+          Probá bajando la antigüedad mínima: es el filtro que más recorta.
+        {% else %}
+          Probá con otra zona o sin rubro.
+        {% endif %}
+      </p>
+    </div>
+  {% endif %}
+
+  {% if exploracion.descartes or exploracion.fallidos or exploracion.por_portal %}
+  <section class="panel" aria-labelledby="t-detras" style="margin-top:var(--s4)">
+    <h2 id="t-detras">Qué pasó detrás</h2>
+    <ul class="timeline">
+      {% for portal, cuantos in exploracion.por_portal.items() %}
+        <li><strong>{{ portal }}</strong>: {{ cuantos }} aviso{{ 's' if cuantos != 1 }}</li>
+      {% endfor %}
+      {% for motivo, cuantos in exploracion.descartes.items() %}
+        <li>{{ cuantos }} descartado{{ 's' if cuantos != 1 }}: {{ motivo }}</li>
+      {% endfor %}
+    </ul>
+    {% if exploracion.fallidos %}
+      <p class="ayuda">
+        No respondieron: {{ exploracion.fallidos | join('; ') }}. Los portales que
+        sí respondieron ya están arriba — uno caído no frena a los demás.
+      </p>
+    {% endif %}
+    <p class="ayuda">
+      Las consultoras de selección se descartan solas: son competencia, no
+      clientes. Los avisos tipo «Postulación espontánea» también, porque nunca se
+      cierran y falsearían los días abiertos.
+    </p>
+  </section>
+  {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Consultar tres portales lleva su tiempo y uno de ellos abre un navegador de
+   verdad. Sin aviso, lo natural es apretar de nuevo y disparar dos búsquedas. */
+(function () {
+  const forma = document.getElementById("forma-buscar");
+  if (!forma) return;
+  forma.addEventListener("submit", () => {
+    const boton = document.getElementById("boton-buscar");
+    const estado = document.getElementById("estado-buscar");
+    if (boton) { boton.disabled = true; boton.textContent = "Buscando…"; }
+    if (estado) {
+      estado.textContent =
+        "Mirando los portales de empleo. Puede tardar hasta un minuto.";
+    }
+  });
+})();
+</script>
+{% endblock %}

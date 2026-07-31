@@ -129,9 +129,10 @@ def test_el_panel_avisa_cuando_la_ingesta_no_trae_nada(cliente, session_con_demo
     correr(session_con_demo, [ConectorFalso(crudas=[])])
     html = cliente.get("/").text
     assert "no encontró ningún aviso" in html
-    # Manda a la pantalla, no al archivo: las fuentes viven en la base y
-    # `fuentes.json` se reparte vacío.
-    assert 'href="/fuentes"' in html
+    # Manda a hacer algo, no a configurar. Antes apuntaba a `Fuentes`, que es
+    # plomería y ni siquiera se entendía; ahora apunta a traer empresas nuevas,
+    # que es lo que hace que la ingesta tenga qué mirar.
+    assert 'href="/buscar"' in html
 
 
 def test_el_panel_no_molesta_cuando_todo_anda(cliente, session_con_demo):

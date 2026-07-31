@@ -50,19 +50,28 @@ que son pantallas de alta y configuración que se usan una vez.
 | **Leads** | Listado filtrable por estado, país, score y texto, con la señal principal de cada uno |
 | **Tablero** | Kanban con drag & drop: Nuevo → Contactado → En conversación → Reunión → Propuesta → Ganado/Perdido |
 | **Avisos** | Todas las vacantes detectadas, ordenadas por días abiertas |
-| **Cargar empresas** | El arranque entero en un paso: pegás una lista y salen leads puntuados |
+| **Buscar empresas** | Elegís zona y rubro y salen las empresas que están publicando ahora |
 | *Más →* **Mi empresa** | Datos de la consultora, el ICP que alimenta el eje de *fit*, y las casillas de Gmail |
-| *Más →* **Fuentes** | Empresas a vigilar y de dónde se leen sus avisos, con el resultado de cada corrida |
-| *Más →* **Importar** | Pegás cualquier lista (Excel, exportaciones, contactos viejos) sin correr la cadena entera |
+| *Más →* **Importar una lista** | El arranque en un paso a partir de una lista propia (un Excel, una exportación del CRM) |
+| *Más →* **Importar contactos** | Pegás cualquier tabla de contactos sin correr la cadena entera |
 | *Más →* **Señales** | Cola de revisión de rondas de inversión y expansiones detectadas en posts |
 | Dentro del lead | **Asistente**: «¿conviene contactarlo?» y borradores que contestan el hilo |
 
-**Cargar empresas** es el camino corto y el único que hace falta el primer día.
-Encadena lo que antes eran cuatro pantallas en el orden correcto —importar, dejar
-vigilando, sondear dónde publica cada una, traer los avisos, sacar contactos y
-puntuar— y cuenta en castellano qué pasó en cada tramo. Viene con una lista de 45
-empresas de IT argentinas cargada, para que el histórico empiece a correr hoy y no
-la semana que viene.
+**Buscar empresas** es el camino principal, y el que invierte el orden del producto.
+Antes había que traer la lista de empresas —que es justamente el problema que uno
+viene a resolver— y después esperar a que publicaran algo. Ahora se define un
+segmento (zona, rubro, «publicados hace más de N días») y las empresas que aparecen
+publicando **ya son leads con señal**: si están publicando, están contratando. Se
+revisa el resultado en pantalla, se destilda lo que no sirve y se trae el resto como
+leads puntuados.
+
+Dos cosas se descartan solas y no llegan a la base: las **consultoras de selección**,
+que son competencia y no clientes, y los **avisos perennes** tipo «Postulación
+espontánea», que nunca se cierran y por eso acumularían días para siempre y
+encabezarían el ranking sin ser una búsqueda real.
+
+`Fuentes` salió del menú: era plomería —qué board tiene cada empresa— que nunca
+debería haber estado a la vista. La ruta sigue existiendo para los enlaces viejos.
 
 Dentro de cada lead, el intercambio con la empresa se ve como un **hilo de chat**:
 lo que mandamos de un lado, lo que contestaron del otro, en orden. Los mails se
@@ -134,10 +143,21 @@ próximo mail del día está ahí y no en la ficha del que se acaba de mandar.
    sirve para cientos de páginas de carrera.
 3. **Portales HTML** — vía Scrapling, con selectores adaptativos y sesiones stealth
    sólo donde hace falta.
-4. **LinkedIn Jobs vía Apify** (`talanton/ingest/apify.py`) — la única fuente que además
-   **descubre empresas nuevas**: el resto vigila las que ya cargaste, una búsqueda por
-   rubro y zona trae las que todavía no conocías. Tiene contrapartidas de ToS que
+4. **Portales de empleo argentinos** (`talanton/ingest/portales/`) — Computrabajo,
+   Bumeran y ZonaJobs. Es lo que alimenta **Buscar empresas**: en vez de vigilar
+   empresas conocidas, las descubre por segmento. Ahí es donde postea la PyME
+   argentina, que es el cliente que compra búsquedas de mando medio. Detalle y
+   contrapartidas: [`docs/portales.md`](docs/portales.md).
+5. **LinkedIn Jobs vía Apify** (`talanton/ingest/apify.py`) — también descubre, pero
+   sesga a medianas y grandes y a consultoras. Tiene contrapartidas de ToS que
    conviene leer antes: [`docs/linkedin.md`](docs/linkedin.md).
+
+Computrabajo sirve HTML del servidor y anda sin navegador; Bumeran y ZonaJobs arman
+el listado con JavaScript y necesitan `scrapling install`. Si el navegador no está,
+esos dos fallan y la búsqueda sigue con el que queda: un portal caído no frena a los
+demás. Los selectores están concentrados en constantes al principio de cada conector
+y **hay que verificarlos contra el HTML real la primera vez**: se escribieron contra
+la estructura documentada de cada sitio, no contra una respuesta capturada.
 
 Las fuentes **se administran desde la pantalla Fuentes**, sin tocar archivos ni
 consola: cargás el nombre de una empresa y Talanton sondea Greenhouse, Lever, Ashby,
