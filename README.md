@@ -196,10 +196,16 @@ exactamente igual que un día tranquilo — y el histórico que no se juntó no 
   «Candidatura espontánea»: nunca cierran, así que acumulan días para siempre y se
   trepan solos al tope del ranking justo por no ser lo que buscamos. Se muestran
   marcados pero no cuentan como búsqueda abierta ni pesan en el score.
-- **Las consultoras y las staffing no son clientes, son competencia.** Se detectan
-  por el nombre o por publicar más búsquedas simultáneas de las que ninguna empresa
-  sostiene —una de 200 personas no tiene 800 vacantes propias— y quedan al fondo del
-  ranking en vez de arriba.
+- **Las consultoras de selección y las staffing no son clientes, son competencia.**
+  Se detectan por el nombre o por publicar más búsquedas simultáneas de las que
+  ninguna empresa sostiene —una de 200 personas no tiene 800 vacantes propias— y
+  quedan al fondo del ranking en vez de arriba. Una consultora de *software* no
+  entra en esa bolsa: contrata para sí y es cliente.
+- **El reclutamiento interno se detecta solo**: si la empresa busca un reclutador
+  para su propio equipo, si tiene gente de RRHH entre sus contactos, o si pasa de
+  250 empleados. Pesa 40 de 100 en accesibilidad, así que darlo por «no» sin mirar
+  regalaba el eje entero. El motivo se muestra: el comercial tiene que poder
+  explicar por qué un lead quedó abajo.
 - Los roles se normalizan (`Programador Full-Stack Ssr` ≡ `Full Stack Developer Senior`,
   `Ingeniero DevOps` ≡ `DevOps Engineer`), sin lo cual las señales de reposteo y
   recurrencia directamente no existen. El vocabulario de IT está cubierto en los dos
@@ -247,7 +253,7 @@ talanton/
   seed.py         Datos de demo
   cli.py          init | usuario | descubrir | seed | ingestar | enriquecer | recalcular | servir
 migraciones/      Alembic
-tests/            446 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
+tests/            453 tests: dominio, web, accesibilidad, correo, asistente, Apollo, auth, ingesta y enriquecimiento
 docs/             Primera búsqueda, estrategia, Gmail, LinkedIn/Apify, Apollo, asistente y despliegue
 .claude/skills/   Skills de craft visual y accesibilidad usadas para revisar el front
 ```

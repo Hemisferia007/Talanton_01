@@ -151,12 +151,21 @@ def _fit(empresa: Empresa, perfil: PerfilConsultora) -> tuple[float, list[str]]:
 
     dotacion = empresa.dotacion_estimada
     if dotacion is None:
-        puntos += 10
+        # Menos que antes y con la razón a la vista: una dotación desconocida
+        # regalaba puntos en silencio, y como casi ninguna empresa importada
+        # trae el dato, terminaba emparejando a todas por arriba.
+        puntos += 5
+        razones.append("Falta la dotación: cargala para que el score signifique algo")
     elif perfil.dotacion_min <= dotacion <= perfil.dotacion_max:
         puntos += 20
         razones.append(f"Dotación estimada de {dotacion} personas: tamaño objetivo")
+    elif dotacion > perfil.dotacion_max:
+        razones.append(
+            f"Con {dotacion} empleados es más grande que tu cliente ideal: "
+            "a ese tamaño hay equipo de selección propio y proveedores ya elegidos"
+        )
     else:
-        razones.append(f"Dotación de {dotacion} fuera del rango objetivo")
+        razones.append(f"Con {dotacion} empleados es más chica que tu cliente ideal")
 
     objetivos = {s.lower() for s in perfil.seniorities}
     abiertas = empresa.vacantes_abiertas
@@ -183,12 +192,13 @@ def _accesibilidad(empresa: Empresa) -> tuple[float, list[str]]:
             "que contrate para sí: es competencia, no cliente"
         ]
 
-    if not empresa.tiene_equipo_ta:
+    tiene_ta, motivo = empresa.equipo_ta
+    if not tiene_ta:
         puntos += 40
         razones.append("Sin equipo de selección interno: terceriza sí o sí")
     else:
         puntos += 10
-        razones.append("Tiene equipo de TA interno: hay que justificar el valor agregado")
+        razones.append(f"Tiene reclutamiento interno ({motivo}): hay que justificar el valor")
 
     abiertas = empresa.vacantes_abiertas
     tomadas = [v for v in abiertas if v.publicada_por_consultora]

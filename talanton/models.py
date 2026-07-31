@@ -156,24 +156,67 @@ class Empresa(Base):
 
     @property
     def parece_proveedor(self) -> bool:
-        """Consultoras, staffing y fábricas de software que revenden gente.
+        """Si hace lo mismo que nosotros: seleccionar personal para terceros.
 
-        No son clientes: son competencia o intermediarios. Se detectan por el
-        nombre, por el texto de sus avisos, o por tener una cantidad de
-        búsquedas simultáneas que ninguna empresa real sostiene —una de 200
-        personas no tiene 800 vacantes abiertas, las tiene porque publica las
-        de sus clientes—.
+        Dos vías. Por el nombre o la industria —una consultora de RRHH, una
+        staffing—; y por publicar más búsquedas simultáneas de las que ninguna
+        empresa real sostiene: una de 200 personas no tiene 800 vacantes
+        propias, las tiene porque publica las de sus clientes.
+
+        Ojo con no pasarse de largo: una consultora de *software* no es
+        competencia, es cliente. Contrata desarrolladores todo el tiempo y no
+        siempre puede.
         """
-        from .normalize import publicado_por_consultora
+        from .normalize import es_competencia
 
         if len([v for v in self.vacantes if not v.cerrada]) > _TOPE_VACANTES_CREIBLE:
             return True
-        return publicado_por_consultora(self.nombre, self.industria)
+        return es_competencia(self.nombre, self.industria)
+
+    @property
+    def equipo_ta(self) -> tuple[bool, str | None]:
+        """Si tiene reclutamiento interno, y por qué lo creemos.
+
+        Pesa 40 de 100 en accesibilidad, así que darlo por «no» sin mirar
+        —que es lo que pasaba— regala el eje entero a cualquier empresa,
+        incluidas las que tienen un equipo de selección de diez personas.
+
+        Devuelve el motivo además del booleano: el comercial tiene que poder
+        explicar por qué un lead quedó abajo, y «lo dijo el sistema» no explica
+        nada.
+        """
+        if self.tiene_equipo_ta:
+            return True, "confirmado a mano"
+
+        buscando_reclutadores = [
+            v for v in self.vacantes_abiertas if "rrhh" in (v.rol_normalizado or "")
+        ]
+        if buscando_reclutadores:
+            return True, f"está buscando «{buscando_reclutadores[0].titulo}» para su propio equipo"
+
+        if any("rrhh" in _clave_cargo(c.cargo) for c in self.contactos):
+            return True, "tiene gente de RRHH cargada como contacto"
+
+        if self.dotacion_estimada and self.dotacion_estimada >= _DOTACION_CON_TA:
+            return True, f"con {self.dotacion_estimada} empleados es casi seguro que tiene"
+
+        return False, None
 
 
 # Más búsquedas simultáneas que esto y no es una empresa contratando: es
 # alguien publicando las vacantes de terceros.
 _TOPE_VACANTES_CREIBLE = 40
+
+# A partir de este tamaño, en Argentina, prácticamente toda empresa tiene al
+# menos un reclutador propio. Por debajo lo lleva el jefe de área o el dueño,
+# que es justo cuando una consultora entra bien.
+_DOTACION_CON_TA = 250
+
+
+def _clave_cargo(cargo: str | None) -> str:
+    from .normalize import normalizar_rol
+
+    return normalizar_rol(cargo or "")
 
 
 class Vacante(Base):

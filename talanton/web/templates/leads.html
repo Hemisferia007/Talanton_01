@@ -65,6 +65,13 @@
         <td>{{ score(lead.score) }}</td>
         <td>
           <a class="celda-titulo" href="/leads/{{ lead.id }}">{{ lead.empresa.nombre }}</a>
+          {# El score ya las hunde, pero verlo de un vistazo evita abrir la ficha
+             para entender por qué una empresa conocida quedó en 20. #}
+          {% if lead.empresa.parece_proveedor %}
+            <span class="chip cerrada">Competencia</span>
+          {% elif lead.empresa.equipo_ta[0] %}
+            <span class="chip tibio">Recluta interno</span>
+          {% endif %}
           <div class="celda-sub">
             {{ lead.empresa.industria or 'Sin industria' }} · {{ lead.empresa.tamano_etiqueta }}
           </div>

@@ -215,12 +215,40 @@ def normalizar_rol(titulo: str) -> str:
     return " ".join(tokens)
 
 
-_MARCAS_CONSULTORA = [
-    "consultora", "consulting", "selecci", "headhunt", "recruit", "staffing",
-    "randstad", "adecco", "manpower", "bayton", "gi group", "hays", "michael page",
-    "robert half", "korn ferry", "talent search", "importante empresa",
-    "reconocida empresa", "empresa lider del rubro", "nuestro cliente",
+# Competencia directa: consultoras de selección, headhunting y staffing de RRHH.
+# No son clientes y nunca lo van a ser.
+#
+# Cuidado con «consulting» a secas: «Bluelight Consulting» y «Snoop Consulting»
+# son consultoras de *software*, y esas sí son clientes —contratan gente todo el
+# tiempo y no siempre pueden—. Sólo entra cuando el texto habla de personas.
+_MARCAS_COMPETENCIA = [
+    "consultora de recursos humanos", "consultora de rrhh", "consultora de personal",
+    "seleccion de personal", "busqueda y seleccion", "capital humano",
+    "headhunt", "head hunt", "recruiting", "recruitment", "reclutamiento",
+    "staffing", "talent solutions", "talent search", "rrhh consultora",
+    "randstad", "adecco", "manpower", "bayton", "gi group", "hays",
+    "michael page", "robert half", "korn ferry", "spencer stuart", "egon zehnder",
 ]
+
+# Marcas de que el aviso lo publica un intermediario y esconde al cliente final.
+# Es sobre el aviso, no sobre la empresa: cualquiera puede publicar así.
+_AVISO_CIEGO = [
+    "importante empresa", "reconocida empresa", "empresa lider del rubro",
+    "nuestro cliente", "our client", "empresa confidencial", "cliente confidencial",
+]
+
+_MARCAS_CONSULTORA = _MARCAS_COMPETENCIA + _AVISO_CIEGO
+
+
+def es_competencia(nombre_empresa: str, industria: str | None = None) -> bool:
+    """Si la empresa hace lo mismo que nosotros: seleccionar personal para otros.
+
+    Se mira el nombre y la industria, no la descripción de sus avisos: una
+    empresa de software puede pedir «experiencia en reclutamiento» para su
+    propio equipo de RRHH sin ser competencia.
+    """
+    texto = sin_acentos(f"{nombre_empresa} {industria or ''}").lower()
+    return any(marca in texto for marca in _MARCAS_COMPETENCIA)
 
 
 # Avisos que nunca se cierran porque no son búsquedas: son buzones de CV. Una

@@ -197,3 +197,98 @@ def test_un_proveedor_no_puntua_como_lead(session):
     resultado = calcular(empresa, perfil(session))
     assert resultado.accesibilidad <= 5
     assert any("competencia" in r for r in resultado.razones)
+
+
+# --- Reclutamiento interno y competencia -------------------------------------
+
+
+def _empresa_simple(session, nombre="Acme", **kw):
+    from talanton.models import Empresa
+    from talanton.normalize import normalizar_nombre_empresa
+
+    e = Empresa(nombre=nombre, nombre_normalizado=normalizar_nombre_empresa(nombre),
+                pais="AR", **kw)
+    session.add(e)
+    session.flush()
+    return e
+
+
+def test_una_empresa_grande_se_asume_con_reclutamiento_interno(session):
+    """Era el agujero más caro: nadie seteaba `tiene_equipo_ta`, así que las 45
+    empresas cobraban los 40 puntos de «terceriza sí o sí», Redbee incluida."""
+    grande = _empresa_simple(session, nombre="Redbee", dotacion_estimada=400)
+    chica = _empresa_simple(session, nombre="Taller Chico", dotacion_estimada=60)
+
+    tiene, motivo = grande.equipo_ta
+    assert tiene is True
+    assert "400" in motivo
+
+    assert chica.equipo_ta == (False, None)
+
+
+def test_buscar_un_reclutador_delata_el_equipo_interno(session):
+    from talanton.models import Vacante
+
+    e = _empresa_simple(session, nombre="Mediana SA", dotacion_estimada=120)
+    e.vacantes.append(
+        Vacante(titulo="Talent Acquisition Manager",
+                rol_normalizado="rrhh manager", fuente="lever", external_id="t-1")
+    )
+    session.flush()
+
+    tiene, motivo = e.equipo_ta
+    assert tiene is True
+    assert "Talent Acquisition Manager" in motivo
+
+
+def test_el_motivo_del_equipo_interno_llega_al_score(session):
+    """«Lo dijo el sistema» no explica nada: el comercial tiene que poder decir
+    por qué este lead quedó abajo."""
+    from talanton.scoring import calcular
+    from talanton.services import perfil
+
+    e = _empresa_simple(session, nombre="Grandota", dotacion_estimada=800)
+    resultado = calcular(e, perfil(session))
+    assert any("reclutamiento interno" in r for r in resultado.razones)
+
+
+def test_una_consultora_de_rrhh_es_competencia(session):
+    from talanton.normalize import es_competencia
+
+    assert es_competencia("Randstad Argentina") is True
+    assert es_competencia("Talento & Selección de Personal") is True
+    assert es_competencia("ABC Staffing") is True
+
+
+def test_una_consultora_de_software_no_es_competencia(session):
+    """«Consulting» a secas no alcanza: una consultora de software contrata
+    gente todo el tiempo y no siempre puede. Es cliente, no competencia."""
+    from talanton.normalize import es_competencia
+
+    assert es_competencia("Bluelight Consulting", "Information Technology & Services") is False
+    assert es_competencia("Snoop Consulting", "IT Services") is False
+    assert es_competencia("Baufest", "IT Services") is False
+
+
+def test_una_empresa_mas_grande_que_el_icp_lo_dice(session):
+    from talanton.scoring import calcular
+    from talanton.services import perfil
+
+    p = perfil(session)
+    p.dotacion_max = 500
+    session.flush()
+
+    e = _empresa_simple(session, nombre="Corporación", dotacion_estimada=5000)
+    resultado = calcular(e, p)
+    assert any("más grande que tu cliente ideal" in r for r in resultado.razones)
+
+
+def test_sin_dotacion_el_score_pide_el_dato(session):
+    """Regalaba puntos en silencio, y como casi ninguna importada trae el dato,
+    emparejaba a todas por arriba."""
+    from talanton.scoring import calcular
+    from talanton.services import perfil
+
+    e = _empresa_simple(session, nombre="Sin Datos SA")
+    resultado = calcular(e, perfil(session))
+    assert any("Falta la dotación" in r for r in resultado.razones)
